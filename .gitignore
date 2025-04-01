@@ -1,0 +1,28 @@
+# Python/Flask
+*.py[cod]
+__pycache__/
+venv/
+.venv/
+instance/
+*.sqlite
+*.db
+
+# JavaScript/Node.js
+node_modules/
+package-lock.json
+yarn.lock
+dist/
+build/
+
+# General OS files
+.DS_Store
+*.log
+*.env
+*.swp
+*.swo
+
+# IDE specific files
+.vscode/
+*.idea/
+*.iml
+*.xml
