@@ -13,6 +13,7 @@ package-lock.json
 yarn.lock
 dist/
 build/
+sql_generation/final_proj_generateSQL.js
 
 # General OS files
 .DS_Store
