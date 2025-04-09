@@ -1,0 +1,128 @@
+-- Register User
+INSERT INTO Users (username, password_hash, email, full_name, role) VALUES (?, ?, ?, ?, ?);
+
+-- User Login 
+SELECT user_id, username, password_hash, role FROM Users WHERE username = ? AND is_active = TRUE;
+
+-- Create Course 
+INSERT INTO Courses (course_name, course_description, created_by) VALUES (?, ?, ?);
+
+-- Retrieve All Active Courses
+SELECT course_id, course_name, course_description, created_at FROM Courses WHERE is_active = TRUE;
+
+-- Retrieve Courses for a Student
+SELECT c.course_id, c.course_name, c.course_description, c.created_at
+FROM Courses c
+JOIN CourseRegistrations cr ON c.course_id = cr.course_id
+WHERE cr.user_id = ? AND cr.role = 'student' AND c.is_active = TRUE;
+
+-- Retrieve Courses for a Lecturer
+SELECT c.course_id, c.course_name, c.course_description, c.created_at
+FROM Courses c
+JOIN CourseRegistrations cr ON c.course_id = cr.course_id
+WHERE cr.user_id = ? AND cr.role = 'lecturer' AND c.is_active = TRUE;
+
+-- Register for Course
+INSERT INTO CourseRegistrations (course_id, user_id, role) VALUES (?, ?, ?);
+
+-- Retrieve Members of a Course
+SELECT u.user_id, u.username, u.full_name, u.email, cr.role 
+FROM Users u
+JOIN CourseRegistrations cr ON u.user_id = cr.user_id
+WHERE cr.course_id = ? AND u.is_active = TRUE
+ORDER BY cr.role, u.full_name;
+
+-- Retrieve Calendar Events for a Course
+SELECT event_id, event_name, event_description, event_date, created_by, created_at
+FROM CalendarEvents 
+WHERE course_id = ?
+ORDER BY event_date;
+
+-- Retrieve Calendar Events for a Student on a Specific Date
+SELECT ce.event_id, ce.event_name, ce.event_description, ce.event_date, c.course_name
+FROM CalendarEvents ce
+JOIN Courses c ON ce.course_id = c.course_id
+JOIN CourseRegistrations cr ON ce.course_id = cr.course_id
+WHERE cr.user_id = ? AND DATE(ce.event_date) = DATE(?) AND cr.role = 'student'
+ORDER BY ce.event_date;
+
+-- Create Calendar Event
+INSERT INTO CalendarEvents (course_id, event_name, event_description, event_date, created_by) VALUES (?, ?, ?, ?, ?);
+
+-- Retrieve Forums for a Course
+SELECT forum_id, forum_name, forum_description, created_at 
+FROM Forums 
+WHERE course_id = ? AND is_active = TRUE;
+
+-- Create Forum for a Course
+INSERT INTO Forums (course_id, forum_name, forum_description, created_by) VALUES (?, ?, ?, ?);
+
+-- Retrieve Discussion Threads for a Forum
+SELECT dt.thread_id, dt.title, dt.post, dt.created_at, u.username, u.full_name
+FROM DiscussionThreads dt
+JOIN Users u ON dt.user_id = u.user_id
+WHERE dt.forum_id = ? AND dt.is_active = TRUE
+ORDER BY dt.created_at DESC;
+
+-- Add Discussion Thread to a Forum
+INSERT INTO DiscussionThreads (forum_id, user_id, title, post) VALUES (?, ?, ?, ?);
+
+-- Retrieve Replies for a Thread
+SELECT r.reply_id, r.post, r.parent_reply_id, r.created_at, u.username, u.full_name
+FROM Replies r
+JOIN Users u ON r.user_id = u.user_id
+WHERE r.thread_id = ? AND r.is_active = TRUE
+ORDER BY r.created_at;
+
+-- Reply to a Thread
+INSERT INTO Replies (thread_id, user_id, parent_reply_id, post) VALUES (?, ?, ?, ?);
+
+-- Add Course Content
+INSERT INTO CourseContent (course_id, section, content_type, content, file_path, uploaded_by) VALUES (?, ?, ?, ?, ?, ?);
+
+-- Retrieve Course Content
+SELECT content_id, section, content_type, content, file_path, uploaded_by, created_at
+FROM CourseContent 
+WHERE course_id = ? AND is_active = TRUE
+ORDER BY section, created_at;
+
+-- Create Assignment
+INSERT INTO Assignments (course_id, assignment_name, assignment_description, due_date, total_points, created_by) 
+VALUES (?, ?, ?, ?, ?, ?);
+
+-- Retrieve Assignments for a Course
+SELECT assignment_id, assignment_name, assignment_description, due_date, total_points, created_at
+FROM Assignments
+WHERE course_id = ? AND is_active = TRUE
+ORDER BY due_date;
+
+-- Submit Assignment
+INSERT INTO AssignmentSubmissions (assignment_id, student_id, submission_text, file_path) 
+VALUES (?, ?, ?, ?);
+
+-- Retrieve Submissions for an Assignment
+SELECT s.submission_id, s.submission_text, s.file_path, s.submission_date, 
+       s.grade, s.feedback, u.username, u.full_name
+FROM AssignmentSubmissions s
+JOIN Users u ON s.student_id = u.user_id
+WHERE s.assignment_id = ?
+ORDER BY s.submission_date;
+
+-- Retrieve Assignment Grades for a Student
+SELECT a.assignment_name, c.course_name, s.grade, s.feedback, s.submission_date, a.total_points
+FROM AssignmentSubmissions s
+JOIN Assignments a ON s.assignment_id = a.assignment_id
+JOIN Courses c ON a.course_id = c.course_id
+WHERE s.student_id = ? AND s.grade IS NOT NULL
+ORDER BY s.submission_date DESC;
+
+-- Grade Assignment
+UPDATE AssignmentSubmissions 
+SET grade = ?, feedback = ?, graded_by = ?, graded_at = CURRENT_TIMESTAMP
+WHERE submission_id = ?;
+
+-- Deactivate User 
+UPDATE Users SET is_active = FALSE WHERE user_id = ?;
+
+-- Deactivate Course 
+UPDATE Courses SET is_active = FALSE WHERE course_id = ?;
