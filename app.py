@@ -3,9 +3,17 @@ import mysql.connector
 import hashlib
 import uuid
 from config import Config
+from user import User
+import jwt
+import datetime
+from functools import wraps # Import wraps for decorator
 
 app = Flask(__name__)
 app.config.from_object(Config)
+
+login_manager = LoginManager()
+login_manager.init_app(app)
+login_manager.login_view = 'login'
 
 # 7. Start the flask development server with `flask --app app --debug run`
 
@@ -79,6 +87,50 @@ def get_next_user_id(cnx):
     """Helper function to get the next UserId."""
     return get_next_id(cnx, "User", "UserId")
 
+def create_jwt(user, secret_key, expiration_hours):
+    """Creates a JWT token for the user."""
+    payload = {
+        'user_id': user['UserId'],  # Use keys from the database result
+        'username': user['Username'],
+        'role': user['Role'],
+        'exp': datetime.datetime.utcnow() + datetime.timedelta(hours=expiration_hours)
+    }
+    return jwt.encode(payload, secret_key, algorithm='HS256')
+
+
+def decode_jwt(token, secret_key):
+    """Decodes and verifies a JWT token."""
+    try:
+        payload = jwt.decode(token, secret_key, algorithms=['HS256'])
+        return payload
+    except jwt.ExpiredSignatureError:
+        return None  # Token expired
+    except jwt.InvalidTokenError:
+        return None  # Invalid token
+    except jwt.DecodeError:
+        return None  # Invalid token format
+
+
+def token_required(f):
+    """Decorator to protect routes and get user info from the token."""
+
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        auth_header = request.headers.get('Authorization')
+        if not auth_header or not auth_header.startswith('Bearer '):
+            return jsonify({'message': 'Token is missing or invalid'}), 401
+
+        token = auth_header.split(' ')[1]
+        payload = decode_jwt(token, app.config['SECRET_KEY'])
+
+        if not payload:
+            return jsonify({'message': 'Invalid token'}), 401
+
+        # Make the user information available to the route
+        return f(payload, *args, **kwargs)
+
+    return decorated_function
+
 
 @app.route('/hello_world', methods=['GET'])
 def hello_world():
@@ -111,7 +163,14 @@ def login():
             provided_hashed_password = generate_hashed_password(password, stored_salt)
 
             if provided_hashed_password == stored_hashed_password:
-                return jsonify({'message': 'Login successful'}), 200
+                user_data = {  # Create a dictionary for JWT payload
+                                'UserId': user[0],  # Access by integer index
+                                'Username': user[1],
+                                'Role': user[3]
+                            }
+                 # Conversion to dictionary was needed because string index did not work on tuples
+                token = create_jwt(user_data, app.config['SECRET_KEY'], app.config['JWT_EXPIRATION_HOURS'])
+                return jsonify({'token': token}), 200
             else:
                 return jsonify({'message': 'Invalid credentials'}), 401
         else:
@@ -122,6 +181,18 @@ def login():
 
     finally:
         cnx.close()
+
+@app.route('/logout', methods=['POST'])
+def logout():
+    # Invalidate the JWT token (this can be done by simply not sending it in future requests)
+    return jsonify({'message': 'Logged out successfully'}), 200
+
+@app.route('/protected', methods=['GET'])
+@token_required
+def protected(user_data):  # Receive user data from the decorator
+    return jsonify({'message': f'Hello, {user_data["username"]}! Your role is {user_data["role"]}'})
+
+
 
 @app.route('/register', methods=['POST'])
 def register_user():
