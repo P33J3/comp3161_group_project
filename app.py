@@ -1,12 +1,13 @@
 from flask import Flask, request, make_response, jsonify
 import mysql.connector
 import hashlib
+import uuid
 from config import Config
 
 app = Flask(__name__)
 app.config.from_object(Config)
 
-# 7. Start the flask develoment server with `flask --app app --debug run`
+# 7. Start the flask development server with `flask --app app --debug run`
 
 def connect_to_mysql():
     try:
@@ -41,9 +42,10 @@ def generate_hashed_password(password, salt):
     hash_object.update((password + salt).encode('utf-8')) # Ensure UTF-8 encoding
     return hash_object.hexdigest()
 
-def get_next_id(conn, table_name, id_column):
+def get_next_id(cnx, table_name, id_column):
     """Helper function to get the next available ID."""
-    cursor = conn.cursor()
+    cnx = connect_to_mysql()
+    cursor = cnx.cursor()
     cursor.execute(f"SELECT MAX({id_column}) FROM {table_name}")
     max_id = cursor.fetchone()[0]
     if max_id is None:
@@ -51,9 +53,10 @@ def get_next_id(conn, table_name, id_column):
     else:
         return max_id + 1
 
-def get_next_student_id(conn):
+def get_next_student_id(cnx):
     """Helper function to get the next StudentID."""
-    cursor = conn.cursor()
+    cnx = connect_to_mysql()
+    cursor = cnx.cursor()
     cursor.execute("SELECT MAX(StudentID) FROM Student")
     max_id = cursor.fetchone()[0]
     if max_id is None:
@@ -61,9 +64,10 @@ def get_next_student_id(conn):
     else:
         return max_id + 1
 
-def get_next_lec_id(conn):
+def get_next_lec_id(cnx):
     """Helper function to get the next LecId."""
-    cursor = conn.cursor()
+    cnx = connect_to_mysql()
+    cursor = cnx.cursor()
     cursor.execute("SELECT MAX(LecId) FROM Lecturer")
     max_id = cursor.fetchone()[0]
     if max_id is None:
@@ -71,9 +75,9 @@ def get_next_lec_id(conn):
     else:
         return max_id + 1
 
-def get_next_user_id(conn):
+def get_next_user_id(cnx):
     """Helper function to get the next UserId."""
-    return get_next_id(conn, "User", "UserId")
+    return get_next_id(cnx, "User", "UserId")
 
 
 @app.route('/hello_world', methods=['GET'])
@@ -136,8 +140,8 @@ def register_user():
     if not username or not password or not role or role not in ('admin', 'lecturer', 'student') or not first_name or not last_name:
         return jsonify({'message': 'Missing or invalid registration data'}), 400
 
-    cnx = connect_to_mysql
-    cursor = conn.cursor()
+    cnx = connect_to_mysql()
+    cursor = cnx.cursor()
 
     try:
         # 1. Generate Salt and Hashed Password
@@ -145,21 +149,21 @@ def register_user():
         hashed_password = generate_hashed_password(password, salt)
 
         # 2. Insert into User table (generate UserId)
-                user_id = get_next_user_id(cnx)
-                cursor.execute("INSERT INTO User (UserId, Username, Password, Role, Salt) VALUES (?, ?, ?, ?, ?)",
-                               (user_id, username, hashed_password, role, salt))
+        user_id = get_next_user_id(cnx)
+        cursor.execute("INSERT INTO User (UserId, Username, Password, Role, Salt) VALUES ( %s,  %s,  %s,  %s,  %s)",
+             (user_id, username, hashed_password, role, salt))
 
         # 3. Insert into Student or Lecturer table if applicable
         if role == 'student':
-            student_id = get_next_student_id(conn)
-            cursor.execute("INSERT INTO Student (StudentID, FirstName, LastName, UserId) VALUES (?, ?, ?, ?)",
+            student_id = get_next_student_id(cnx)
+            cursor.execute("INSERT INTO Student (StudentID, FirstName, LastName, UserId) VALUES ( %s,  %s,  %s,  %s)",
                            (student_id, first_name, last_name, user_id))
         elif role == 'lecturer' or role == 'admin':  # Allow admins to be created if they are lecturers
-            lec_id = get_next_lec_id(conn)  # Get next LecId
-            cursor.execute("INSERT INTO Lecturer (LecId, LecFirstName, LecLastName, Department, UserId) VALUES (?, ?, ?, ?, ?)",
+            lec_id = get_next_lec_id(cnx)  # Get next LecId
+            cursor.execute("INSERT INTO Lecturer (LecId, LecFirstName, LecLastName, Department, UserId) VALUES ( %s,  %s,  %s,  %s,  %s)",
                            (lec_id, first_name, last_name, department, user_id))
 
-        conn.commit()
+        cnx.commit()
         return jsonify({'message': 'User registered successfully'}), 201
 
     except Exception as e:

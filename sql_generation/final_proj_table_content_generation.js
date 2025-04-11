@@ -124,7 +124,7 @@ function generateStudents(count, allUsers) {
             Salt: salt
         });
         students.push({
-            StudentID: 62000 + i,
+            StudentID: 620000000 + i,
             FirstName: firstName,
             LastName: lastName,
             UserId: userId, // Use generated UserId
