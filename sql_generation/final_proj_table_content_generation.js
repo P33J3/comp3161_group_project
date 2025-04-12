@@ -45,7 +45,7 @@ function generateLecturers(count, allUsers) {
             Salt: salt
         });
         lecturers.push({
-            LecId: i,
+            LecId: 10000000 + i,
             LecFirstName: firstName,
             LecLastName: lastName,
             Department: universityDepartment(),
@@ -148,7 +148,7 @@ function generateAssignments(count, courses) {
         const mysqlDateString = dueDate.toISOString().slice(0, 19).replace('T', ' '); // Format for MySQL DATETIME
 
         assignments.push({
-            AssignmentId: 'A' + i,
+            AssignmentId: i,
             CourseId: randomCourse.CourseId,
             Title: `Assignment ${i} - ${randomCourse.CourseName}`,
             Description: faker.lorem.sentence(),
@@ -170,7 +170,7 @@ function generateForums(count, courses) {
         const randomCourseIndex = faker.number.int({ min: 0, max: courses.length - 1 });
         const randomCourse = courses[randomCourseIndex];
         forums.push({
-            ForumId: 'F' + i,
+            ForumId: i,
             CourseId: randomCourse.CourseId,
             Title: `Forum ${i} - ${randomCourse.CourseName}`,
         });
@@ -193,7 +193,7 @@ function generateThreads(count, forums, students) {
         const randomStudentIndex = faker.number.int({ min: 0, max: students.length - 1 });
         const randomStudent = students[randomStudentIndex];
         threads.push({
-            ThreadId: 'T' + i,
+            ThreadId: i,
             ForumId: randomForum.ForumId,
             UserId: randomStudent.StudentID,
             Title: `Thread ${i}`,
@@ -211,16 +211,17 @@ function generateThreads(count, forums, students) {
  */
 function generateCalendarEvents(count, courses) {
     const events = [];
-    const eventDateTime = faker.date.future(); // Generate a combined date and time
-    const mysqlDateTimeString = eventDateTime.toISOString().slice(0, 19).replace('T', ' '); // Format for MySQL DATETIME
     for (let i = 1; i <= count; i++) {
         const randomCourseIndex = faker.number.int({ min: 0, max: courses.length - 1 });
         const randomCourse = courses[randomCourseIndex];
+        const eventDateTime = faker.date.future(); // Generate a combined date and time
+        const mysqlDateTimeString = eventDateTime.toISOString()
+            .slice(0, 19).replace('T', ' '); // Format for MySQL DATETIME
         events.push({
-            EventId: 'E' + i,
+            EventId: i,
             CourseId: randomCourse.CourseId,
             EventDate: mysqlDateTimeString.split(' ')[0], // Extract date part
-            EventTime: mysqlDateTimeString, // Use the full DATETIME for EventTime
+            EventTime: mysqlDateTimeString.split(' ')[1], // Extract the time
             Description: faker.lorem.sentence(),
         });
     }

@@ -111,9 +111,9 @@ function generateCourseContent(count, courses) {
         }
 
         courseContent.push({
-            ContentId: 'CC' + i,
+            ContentId: i,
             CourseId: randomCourse.CourseId,
-            Section: `Section ${faker.number.int({ min: 1, max: 10 })}`,
+            Section: faker.number.int({ min: 1, max: 20 }),
             Content: content, // This is the BLOB data
             Metadata: JSON.stringify(metadata),
         });

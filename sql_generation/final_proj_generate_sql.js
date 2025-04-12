@@ -66,13 +66,13 @@ CREATE TABLE Lecturer (
 );
 
 CREATE TABLE Course (
-    CourseId VARCHAR(20) PRIMARY KEY,
+    CourseId INT PRIMARY KEY,
     CourseName VARCHAR(255) NOT NULL UNIQUE,
     CourseCode VARCHAR(10) NOT NULL UNIQUE
 );
 
 CREATE TABLE CourseLecturer (
-    CourseId VARCHAR(20),
+    CourseId INT,
     LecId INT,
     PRIMARY KEY (CourseId, LecId),
     FOREIGN KEY (CourseId) REFERENCES Course(CourseId),
@@ -89,7 +89,7 @@ CREATE TABLE Student (
 
 CREATE TABLE Enrollment (
     StudentID INT,
-    CourseId VARCHAR(20),
+    CourseId INT,
     Grade INT CHECK (Grade >= 0 AND Grade <= 100),
     PRIMARY KEY (StudentID, CourseId),
     FOREIGN KEY (StudentID) REFERENCES Student(StudentID),
@@ -98,8 +98,8 @@ CREATE TABLE Enrollment (
 );
 
 CREATE TABLE Assignment (
-    AssignmentId VARCHAR(20) PRIMARY KEY,
-    CourseId VARCHAR(20),
+    AssignmentId INT PRIMARY KEY,
+    CourseId INT,
     Title VARCHAR(255) NOT NULL,
     Description TEXT,
     DueDate DATETIME,
@@ -107,15 +107,15 @@ CREATE TABLE Assignment (
 );
 
 CREATE TABLE Forum (
-    ForumId VARCHAR(20) PRIMARY KEY,
-    CourseId VARCHAR(20),
+    ForumId INT PRIMARY KEY,
+    CourseId INT,
     Title VARCHAR(255) NOT NULL,
     FOREIGN KEY (CourseId) REFERENCES Course(CourseId)
 );
 
 CREATE TABLE DiscussionThread (
-    ThreadId VARCHAR(20) PRIMARY KEY,
-    ForumId VARCHAR(20),
+    ThreadId INT PRIMARY KEY,
+    ForumId INT,
     UserId INT,
     Title VARCHAR(255) NOT NULL,
     Post TEXT NOT NULL,
@@ -124,18 +124,18 @@ CREATE TABLE DiscussionThread (
 );
 
 CREATE TABLE CalendarEvent (
-    EventId VARCHAR(20) PRIMARY KEY,
-    CourseId VARCHAR(20),
+    EventId INT PRIMARY KEY,
+    CourseId INT,
     EventDate DATETIME NOT NULL,
-    EventTime DATETIME NOT NULL,
+    EventTime TIME NOT NULL,
     Description TEXT,
     FOREIGN KEY (CourseId) REFERENCES Course(CourseId)
 );
 
 CREATE TABLE CourseContent (
-    ContentId VARCHAR(20) PRIMARY KEY,
-    CourseId VARCHAR(20),
-    Section VARCHAR(255) NOT NULL,
+    ContentId INT PRIMARY KEY,
+    CourseId INT,
+    Section INT NOT NULL,
     Content BLOB,
     Metadata TEXT,
     FOREIGN KEY (CourseId) REFERENCES Course(CourseId)
