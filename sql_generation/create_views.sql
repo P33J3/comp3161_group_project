@@ -7,6 +7,7 @@ JOIN Enrollment e ON c.CourseId = e.CourseId
 GROUP BY c.CourseId, c.CourseName
 HAVING COUNT(e.StudentID) >= 50;
 
+
 -- 2. All students that do 5 or more courses.
 CREATE VIEW StudentsWith5PlusCourses AS
 SELECT s.StudentID, s.FirstName, s.LastName, COUNT(e.CourseId) AS NumberOfCourses
