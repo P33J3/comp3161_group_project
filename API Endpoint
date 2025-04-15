@@ -55,7 +55,7 @@ FROM Forums
 WHERE course_id = ? AND is_active = TRUE;
 
 -- Create Forum for a Course
-INSERT INTO Forums (course_id, forum_name, forum_description, created_by) VALUES (?, ?, ?, ?);
+INSERT INTO Forums (course_id, forum_name, forum_description, created_by) VALUES (?, ?, ?, ?, ?);
 
 -- Retrieve Discussion Threads for a Forum
 SELECT dt.thread_id, dt.title, dt.post, dt.created_at, u.username, u.full_name
