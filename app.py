@@ -316,7 +316,7 @@ def retrieve_calendar_events(course_id):
         cnx.close()
 
 
-@app.route('/retrieve_calendar_events_for_student', methods=['POST'])
+@app.route('/retrieve_calendar_events_for_student', methods=['GET'])
 def retrieve_calendar_events_for_student():
     data = request.get_json()
     user_id = data.get('user_id')
