@@ -33,7 +33,7 @@ function generateInsertStatements(tableName, data) {
 
 function generateCreateDatabaseStatement() {
     const createDatabaseStatement = `
-    DROP DATABASE IF EXISTS course_mgmt_db;
+DROP DATABASE IF EXISTS course_mgmt_db;
 CREATE DATABASE IF NOT EXISTS course_mgmt_db;
 USE course_mgmt_db;
     `;
@@ -139,6 +139,28 @@ CREATE TABLE CourseContent (
     Content BLOB,
     Metadata TEXT,
     FOREIGN KEY (CourseId) REFERENCES Course(CourseId)
+);
+
+
+CREATE TABLE Submission (
+    SubmissionId INT PRIMARY KEY,
+    AssignmentId INT NOT NULL,
+    StudentID INT NOT NULL,
+    SubmissionContent BLOB, 
+    SubmissionDate DATETIME DEFAULT CURRENT_TIMESTAMP, 
+    FOREIGN KEY (AssignmentId) REFERENCES Assignment(AssignmentId) ON DELETE CASCADE, -- If assignment is deleted, remove submissions
+    FOREIGN KEY (StudentID) REFERENCES Student(StudentID) ON DELETE CASCADE, -- If student is deleted, remove their submissions
+    UNIQUE (AssignmentId, StudentID) -- Ensure a student submits an assignment only once
+);
+
+
+CREATE TABLE Grade (
+    GradeId INT PRIMARY KEY,
+    SubmissionId INT NOT NULL UNIQUE, -- Each submission gets only one grade entry
+    Grade INT NOT NULL CHECK (Grade >= 0 AND Grade <= 100), 
+    Feedback TEXT, 
+    GradingDate DATETIME DEFAULT CURRENT_TIMESTAMP, 
+    FOREIGN KEY (SubmissionId) REFERENCES Submission(SubmissionId) ON DELETE CASCADE -- If submission is deleted, remove the grade
 );
 
 DELIMITER //

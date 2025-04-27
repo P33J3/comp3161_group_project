@@ -204,3 +204,62 @@ def enroll_student_in_course(user_data, student_id, course_id):
         return jsonify({'message': f'Failed to enroll student in course: {str(e)}'}), 500
     finally:
         cnx.close()
+
+#Should return members of a particular course
+@courses_bp.route('/course/<int:course_id>/members', methods=['GET'])
+@token_required
+def get_course_members(user_data, course_id):
+    if user_data['role'] not in ['admin', 'lecturer', 'student']:
+        return jsonify({'message': 'Access denied'}), 403
+    cnx = connect_to_mysql(app.config)
+    cursor = cnx.cursor()
+
+    try:
+        # Check if the course exists
+        cursor.execute("SELECT CourseID FROM Course WHERE CourseID = %s", (course_id,))
+        course = cursor.fetchone()
+        if not course:
+            return jsonify({'message': 'Course not found'}), 404
+
+        members = []
+
+        # Get the lecturer for the course
+        cursor.execute("""
+            SELECT L.LecId, L.LecFirstName, L.LecLastName
+            FROM Lecturer L
+            JOIN CourseLecturer CL ON L.LecId = CL.LecId
+            WHERE CL.CourseID = %s
+        """, (course_id,))
+        lecturer = cursor.fetchone()
+        if lecturer:
+            members.append({
+                'member_id': lecturer[0],
+                'first_name': lecturer[1],
+                'last_name': lecturer[2],
+                'role': 'lecturer'
+            })
+
+        # Get the students enrolled in the course
+        cursor.execute("""
+            SELECT S.StudentID, S.FirstName, S.LastName
+            FROM Student S
+            JOIN Enrollment E ON S.StudentID = E.StudentID
+            WHERE E.CourseID = %s
+        """, (course_id,))
+        students = cursor.fetchall()
+        for student in students:
+            members.append({
+                'member_id': student[0],
+                'first_name': student[1],
+                'last_name': student[2],
+                'role': 'student'
+            })
+
+        return jsonify(members), 200
+
+    except Exception as e:
+        return jsonify({'message': f'Failed to retrieve course members: {str(e)}'}), 500
+    finally:
+        cursor.close()
+        cnx.close()
+

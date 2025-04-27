@@ -7,6 +7,8 @@ import jwt
 import datetime
 from functools import wraps # Import wraps for decorator
 from .courses_routes import courses_bp
+from .content_routes import content_bp
+from .views_routes import views_bp
 from .utilities import (connect_to_mysql,
 generate_salt, generate_hashed_password, get_next_user_id,
 get_next_student_id, get_next_lec_id, create_jwt, decode_jwt, token_required)
@@ -17,6 +19,8 @@ app.config.from_object(Config)
 
 
 app.register_blueprint(courses_bp)
+app.register_blueprint(content_bp)
+app.register_blueprint(views_bp)
 
 #  python -m venv venv
 # .\venv\Scripts\activate

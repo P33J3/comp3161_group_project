@@ -94,6 +94,28 @@ CREATE TABLE CourseContent (
     FOREIGN KEY (CourseId) REFERENCES Course(CourseId)
 );
 
+
+CREATE TABLE Submission (
+    SubmissionId INT PRIMARY KEY,
+    AssignmentId INT NOT NULL,
+    StudentID INT NOT NULL,
+    SubmissionContent BLOB, -- Or TEXT/VARCHAR if storing links/text only
+    SubmissionDate DATETIME DEFAULT CURRENT_TIMESTAMP, -- Track when it was submitted
+    FOREIGN KEY (AssignmentId) REFERENCES Assignment(AssignmentId) ON DELETE CASCADE, -- If assignment is deleted, remove submissions
+    FOREIGN KEY (StudentID) REFERENCES Student(StudentID) ON DELETE CASCADE, -- If student is deleted, remove their submissions
+    UNIQUE (AssignmentId, StudentID) -- Ensure a student submits an assignment only once
+);
+
+
+CREATE TABLE Grade (
+    GradeId INT PRIMARY KEY,
+    SubmissionId INT NOT NULL UNIQUE, -- Each submission gets only one grade entry
+    Grade INT NOT NULL CHECK (Grade >= 0 AND Grade <= 100), -- The numerical grade
+    Feedback TEXT, -- Optional field for lecturer feedback
+    GradingDate DATETIME DEFAULT CURRENT_TIMESTAMP, -- Track when it was graded
+    FOREIGN KEY (SubmissionId) REFERENCES Submission(SubmissionId) ON DELETE CASCADE -- If submission is deleted, remove the grade
+);
+
 DELIMITER //
 
 CREATE TRIGGER check_student_enrollment_limit
