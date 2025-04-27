@@ -406,3 +406,396 @@ def create_calendar_event():
         cnx.close()
 
 
+# Retrieve Forums for a Course
+@app.route('/forums/<int:course_id>', methods=['GET'])
+def retrieve_forums(course_id):
+    cnx = connect_to_mysql()
+    cursor = cnx.cursor(dictionary=True)
+
+    try:
+        query = """
+        SELECT forum_id, forum_name, forum_description, created_at 
+        FROM Forums 
+        WHERE course_id = %s AND is_active = TRUE
+        """
+        cursor.execute(query, (course_id,))
+        forums = cursor.fetchall()
+        return jsonify(forums), 200
+
+    except Exception as e:
+        return jsonify({'message': f'Failed to retrieve forums: {str(e)}'}), 500
+
+    finally:
+        cnx.close()
+
+
+# Create Forum for a Course
+@app.route('/forums', methods=['POST'])
+def create_forum():
+    data = request.get_json()
+    course_id = data.get('course_id')
+    forum_name = data.get('forum_name')
+    forum_description = data.get('forum_description')
+    created_by = data.get('created_by')
+
+    if not course_id or not forum_name or not created_by:
+        return jsonify({'message': 'Missing required forum data'}), 400
+
+    cnx = connect_to_mysql()
+    cursor = cnx.cursor()
+
+    try:
+        query = """
+        INSERT INTO Forums (course_id, forum_name, forum_description, created_by) 
+        VALUES (%s, %s, %s, %s)
+        """
+        cursor.execute(query, (course_id, forum_name, forum_description, created_by))
+        cnx.commit()
+        return jsonify({'message': 'Forum created successfully'}), 201
+
+    except Exception as e:
+        return jsonify({'message': f'Failed to create forum: {str(e)}'}), 500
+
+    finally:
+        cnx.close()
+
+
+# Retrieve Discussion Threads for a Forum
+@app.route('/threads/<int:forum_id>', methods=['GET'])
+def retrieve_threads(forum_id):
+    cnx = connect_to_mysql()
+    cursor = cnx.cursor(dictionary=True)
+
+    try:
+        query = """
+        SELECT dt.thread_id, dt.title, dt.post, dt.created_at, u.username, u.full_name
+        FROM DiscussionThreads dt
+        JOIN Users u ON dt.user_id = u.user_id
+        WHERE dt.forum_id = %s AND dt.is_active = TRUE
+        ORDER BY dt.created_at DESC
+        """
+        cursor.execute(query, (forum_id,))
+        threads = cursor.fetchall()
+        return jsonify(threads), 200
+
+    except Exception as e:
+        return jsonify({'message': f'Failed to retrieve threads: {str(e)}'}), 500
+
+    finally:
+        cnx.close()
+
+
+# Add Discussion Thread to a Forum
+@app.route('/threads', methods=['POST'])
+def add_thread():
+    data = request.get_json()
+    forum_id = data.get('forum_id')
+    user_id = data.get('user_id')
+    title = data.get('title')
+    post = data.get('post')
+
+    if not forum_id or not user_id or not title or not post:
+        return jsonify({'message': 'Missing required thread data'}), 400
+
+    cnx = connect_to_mysql()
+    cursor = cnx.cursor()
+
+    try:
+        query = """
+        INSERT INTO DiscussionThreads (forum_id, user_id, title, post) 
+        VALUES (%s, %s, %s, %s)
+        """
+        cursor.execute(query, (forum_id, user_id, title, post))
+        cnx.commit()
+        return jsonify({'message': 'Thread added successfully'}), 201
+
+    except Exception as e:
+        return jsonify({'message': f'Failed to add thread: {str(e)}'}), 500
+
+    finally:
+        cnx.close()
+
+
+# Retrieve Replies for a Thread
+@app.route('/replies/<int:thread_id>', methods=['GET'])
+def retrieve_replies(thread_id):
+    cnx = connect_to_mysql()
+    cursor = cnx.cursor(dictionary=True)
+
+    try:
+        query = """
+        SELECT r.reply_id, r.post, r.parent_reply_id, r.created_at, u.username, u.full_name
+        FROM Replies r
+        JOIN Users u ON r.user_id = u.user_id
+        WHERE r.thread_id = %s AND r.is_active = TRUE
+        ORDER BY r.created_at
+        """
+        cursor.execute(query, (thread_id,))
+        replies = cursor.fetchall()
+        return jsonify(replies), 200
+
+    except Exception as e:
+        return jsonify({'message': f'Failed to retrieve replies: {str(e)}'}), 500
+
+    finally:
+        cnx.close()
+
+
+# Reply to a Thread
+@app.route('/replies', methods=['POST'])
+def add_reply():
+    data = request.get_json()
+    thread_id = data.get('thread_id')
+    user_id = data.get('user_id')
+    parent_reply_id = data.get('parent_reply_id')
+    post = data.get('post')
+
+    if not thread_id or not user_id or not post:
+        return jsonify({'message': 'Missing required reply data'}), 400
+
+    cnx = connect_to_mysql()
+    cursor = cnx.cursor()
+
+    try:
+        query = """
+        INSERT INTO Replies (thread_id, user_id, parent_reply_id, post) 
+        VALUES (%s, %s, %s, %s)
+        """
+        cursor.execute(query, (thread_id, user_id, parent_reply_id, post))
+        cnx.commit()
+        return jsonify({'message': 'Reply added successfully'}), 201
+
+    except Exception as e:
+        return jsonify({'message': f'Failed to add reply: {str(e)}'}), 500
+
+    finally:
+        cnx.close()
+
+
+# Add Course Content
+@app.route('/course_content', methods=['POST'])
+def add_course_content():
+    data = request.get_json()
+    course_id = data.get('course_id')
+    section = data.get('section')
+    content_type = data.get('content_type')
+    content = data.get('content')
+    file_path = data.get('file_path')
+    uploaded_by = data.get('uploaded_by')
+
+    if not course_id or not section or not content_type or not uploaded_by:
+        return jsonify({'message': 'Missing required course content data'}), 400
+
+    cnx = connect_to_mysql()
+    cursor = cnx.cursor()
+
+    try:
+        query = """
+        INSERT INTO CourseContent (course_id, section, content_type, content, file_path, uploaded_by) 
+        VALUES (%s, %s, %s, %s, %s, %s)
+        """
+        cursor.execute(query, (course_id, section, content_type, content, file_path, uploaded_by))
+        cnx.commit()
+        return jsonify({'message': 'Course content added successfully'}), 201
+
+    except Exception as e:
+        return jsonify({'message': f'Failed to add course content: {str(e)}'}), 500
+
+    finally:
+        cnx.close()
+
+
+# Retrieve Course Content
+@app.route('/course_content/<int:course_id>', methods=['GET'])
+def retrieve_course_content(course_id):
+    cnx = connect_to_mysql()
+    cursor = cnx.cursor(dictionary=True)
+
+    try:
+        query = """
+        SELECT content_id, section, content_type, content, file_path, uploaded_by, created_at
+        FROM CourseContent 
+        WHERE course_id = %s AND is_active = TRUE
+        ORDER BY section, created_at
+        """
+        cursor.execute(query, (course_id,))
+        content = cursor.fetchall()
+        return jsonify(content), 200
+
+    except Exception as e:
+        return jsonify({'message': f'Failed to retrieve course content: {str(e)}'}), 500
+
+    finally:
+        cnx.close()
+
+
+# Create Assignment
+@app.route('/assignments', methods=['POST'])
+def create_assignment():
+    data = request.get_json()
+    course_id = data.get('course_id')
+    assignment_name = data.get('assignment_name')
+    assignment_description = data.get('assignment_description')
+    due_date = data.get('due_date')
+    total_points = data.get('total_points')
+    created_by = data.get('created_by')
+
+    if not course_id or not assignment_name or not due_date or not total_points or not created_by:
+        return jsonify({'message': 'Missing required assignment data'}), 400
+
+    cnx = connect_to_mysql()
+    cursor = cnx.cursor()
+
+    try:
+        query = """
+        INSERT INTO Assignments (course_id, assignment_name, assignment_description, due_date, total_points, created_by) 
+        VALUES (%s, %s, %s, %s, %s, %s)
+        """
+        cursor.execute(query, (course_id, assignment_name, assignment_description, due_date, total_points, created_by))
+        cnx.commit()
+        return jsonify({'message': 'Assignment created successfully'}), 201
+
+    except Exception as e:
+        return jsonify({'message': f'Failed to create assignment: {str(e)}'}), 500
+
+    finally:
+        cnx.close()
+
+
+# Retrieve Assignments for a Course
+@app.route('/assignments/<int:course_id>', methods=['GET'])
+def retrieve_assignments(course_id):
+    cnx = connect_to_mysql()
+    cursor = cnx.cursor(dictionary=True)
+
+    try:
+        query = """
+        SELECT assignment_id, assignment_name, assignment_description, due_date, total_points, created_at
+        FROM Assignments
+        WHERE course_id = %s AND is_active = TRUE
+        ORDER BY due_date
+        """
+        cursor.execute(query, (course_id,))
+        assignments = cursor.fetchall()
+        return jsonify(assignments), 200
+
+    except Exception as e:
+        return jsonify({'message': f'Failed to retrieve assignments: {str(e)}'}), 500
+
+    finally:
+        cnx.close()
+
+
+# Submit Assignment
+@app.route('/assignment_submissions', methods=['POST'])
+def submit_assignment():
+    data = request.get_json()
+    assignment_id = data.get('assignment_id')
+    student_id = data.get('student_id')
+    submission_text = data.get('submission_text')
+    file_path = data.get('file_path')
+
+    if not assignment_id or not student_id:
+        return jsonify({'message': 'Missing required submission data'}), 400
+
+    cnx = connect_to_mysql()
+    cursor = cnx.cursor()
+
+    try:
+        query = """
+        INSERT INTO AssignmentSubmissions (assignment_id, student_id, submission_text, file_path) 
+        VALUES (%s, %s, %s, %s)
+        """
+        cursor.execute(query, (assignment_id, student_id, submission_text, file_path))
+        cnx.commit()
+        return jsonify({'message': 'Assignment submitted successfully'}), 201
+
+    except Exception as e:
+        return jsonify({'message': f'Failed to submit assignment: {str(e)}'}), 500
+
+    finally:
+        cnx.close()
+
+
+# Retrieve Submissions for an Assignment
+@app.route('/assignment_submissions/<int:assignment_id>', methods=['GET'])
+def retrieve_submissions(assignment_id):
+    cnx = connect_to_mysql()
+    cursor = cnx.cursor(dictionary=True)
+
+    try:
+        query = """
+        SELECT s.submission_id, s.submission_text, s.file_path, s.submission_date, 
+               s.grade, s.feedback, u.username, u.full_name
+        FROM AssignmentSubmissions s
+        JOIN Users u ON s.student_id = u.user_id
+        WHERE s.assignment_id = %s
+        ORDER BY s.submission_date
+        """
+        cursor.execute(query, (assignment_id,))
+        submissions = cursor.fetchall()
+        return jsonify(submissions), 200
+
+    except Exception as e:
+        return jsonify({'message': f'Failed to retrieve submissions: {str(e)}'}), 500
+
+    finally:
+        cnx.close()
+
+
+# Retrieve Assignment Grades for a Student
+@app.route('/assignment_grades/<int:student_id>', methods=['GET'])
+def retrieve_assignment_grades(student_id):
+    cnx = connect_to_mysql()
+    cursor = cnx.cursor(dictionary=True)
+
+    try:
+        query = """
+        SELECT a.assignment_name, c.course_name, s.grade, s.feedback, s.submission_date, a.total_points
+        FROM AssignmentSubmissions s
+        JOIN Assignments a ON s.assignment_id = a.assignment_id
+        JOIN Courses c ON a.course_id = c.course_id
+        WHERE s.student_id = %s AND s.grade IS NOT NULL
+        ORDER BY s.submission_date DESC
+        """
+        cursor.execute(query, (student_id,))
+        grades = cursor.fetchall()
+        return jsonify(grades), 200
+
+    except Exception as e:
+        return jsonify({'message': f'Failed to retrieve grades: {str(e)}'}), 500
+
+    finally:
+        cnx.close()
+
+
+# Grade Assignment
+@app.route('/grade_assignment', methods=['PUT'])
+def grade_assignment():
+    data = request.get_json()
+    submission_id = data.get('submission_id')
+    grade = data.get('grade')
+    feedback = data.get('feedback')
+    graded_by = data.get('graded_by')
+
+    if not submission_id or grade is None or not graded_by:
+        return jsonify({'message': 'Missing required grading data'}), 400
+
+    cnx = connect_to_mysql()
+    cursor = cnx.cursor()
+
+    try:
+        query = """
+        UPDATE AssignmentSubmissions 
+        SET grade = %s, feedback = %s, graded_by = %s, graded_at = CURRENT_TIMESTAMP
+        WHERE submission_id = %s
+        """
+        cursor.execute(query, (grade, feedback, graded_by, submission_id))
+        cnx.commit()
+        return jsonify({'message': 'Assignment graded successfully'}), 200
+
+    except Exception as e:
+        return jsonify({'message': f'Failed to grade assignment: {str(e)}'}), 500
+
+    finally:
+        cnx.close()
