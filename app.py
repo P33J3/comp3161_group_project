@@ -141,3 +141,236 @@ def register_user():
 
     finally:
         cnx.close()
+
+
+@app.route('/create_course', methods=['POST'])
+def create_course():
+    data = request.get_json()
+    course_name = data.get('course_name')
+    course_description = data.get('course_description')
+    created_by = data.get('created_by')  # Admin user ID
+
+    if not course_name or not created_by:
+        return jsonify({'message': 'Missing course name or creator ID'}), 400
+
+    cnx = connect_to_mysql()
+    cursor = cnx.cursor()
+
+    try:
+        cursor.execute("SELECT Role FROM User WHERE UserId = %s", (created_by,))
+        user = cursor.fetchone()
+        if not user or user[0] != 'admin':
+            return jsonify({'message': 'Only admins can create courses'}), 403
+
+        cursor.execute("INSERT INTO Courses (CourseName, CourseDescription, CreatedBy) VALUES (%s, %s, %s)",
+                       (course_name, course_description, created_by))
+        cnx.commit()
+        return jsonify({'message': 'Course created successfully'}), 201
+
+    except Exception as e:
+        return jsonify({'message': f'Failed to create course: {str(e)}'}), 500
+
+    finally:
+        cnx.close()
+
+
+@app.route('/retrieve_courses', methods=['GET'])
+def retrieve_courses():
+    cnx = connect_to_mysql()
+    cursor = cnx.cursor(dictionary=True)
+
+    try:
+        cursor.execute("SELECT CourseId, CourseName, CourseDescription, CreatedAt FROM Courses WHERE IsActive = TRUE")
+        courses = cursor.fetchall()
+        return jsonify(courses), 200
+
+    except Exception as e:
+        return jsonify({'message': f'Failed to retrieve courses: {str(e)}'}), 500
+
+    finally:
+        cnx.close()
+
+
+@app.route('/retrieve_courses_for_student/<int:user_id>', methods=['GET'])
+def retrieve_courses_for_student(user_id):
+    cnx = connect_to_mysql()
+    cursor = cnx.cursor(dictionary=True)
+
+    try:
+        query = """
+        SELECT c.CourseId, c.CourseName, c.CourseDescription, c.CreatedAt
+        FROM Courses c
+        JOIN CourseRegistrations cr ON c.CourseId = cr.CourseId
+        WHERE cr.UserId = %s AND cr.Role = 'student' AND c.IsActive = TRUE
+        """
+        cursor.execute(query, (user_id,))
+        courses = cursor.fetchall()
+        return jsonify(courses), 200
+
+    except Exception as e:
+        return jsonify({'message': f'Failed to retrieve courses for student: {str(e)}'}), 500
+
+    finally:
+        cnx.close()
+
+
+@app.route('/retrieve_courses_for_lecturer/<int:user_id>', methods=['GET'])
+def retrieve_courses_for_lecturer(user_id):
+    cnx = connect_to_mysql()
+    cursor = cnx.cursor(dictionary=True)
+
+    try:
+        query = """
+        SELECT c.CourseId, c.CourseName, c.CourseDescription, c.CreatedAt
+        FROM Courses c
+        JOIN CourseRegistrations cr ON c.CourseId = cr.CourseId
+        WHERE cr.UserId = %s AND cr.Role = 'lecturer' AND c.IsActive = TRUE
+        """
+        cursor.execute(query, (user_id,))
+        courses = cursor.fetchall()
+        return jsonify(courses), 200
+
+    except Exception as e:
+        return jsonify({'message': f'Failed to retrieve courses for lecturer: {str(e)}'}), 500
+
+    finally:
+        cnx.close()
+
+
+@app.route('/register_for_course', methods=['POST'])
+def register_for_course():
+    data = request.get_json()
+    course_id = data.get('course_id')
+    user_id = data.get('user_id')
+    role = data.get('role')  # 'student' or 'lecturer'
+
+    if not course_id or not user_id or not role:
+        return jsonify({'message': 'Missing course ID, user ID, or role'}), 400
+
+    cnx = connect_to_mysql()
+    cursor = cnx.cursor()
+
+    try:
+        if role == 'lecturer':
+            # Ensure only one lecturer is assigned to a course
+            cursor.execute("SELECT COUNT(*) FROM CourseRegistrations WHERE CourseId = %s AND Role = 'lecturer'", (course_id,))
+            if cursor.fetchone()[0] > 0:
+                return jsonify({'message': 'A lecturer is already assigned to this course'}), 400
+
+        cursor.execute("INSERT INTO CourseRegistrations (CourseId, UserId, Role) VALUES (%s, %s, %s)",
+                       (course_id, user_id, role))
+        cnx.commit()
+        return jsonify({'message': 'User registered for course successfully'}), 201
+
+    except Exception as e:
+        return jsonify({'message': f'Failed to register for course: {str(e)}'}), 500
+
+    finally:
+        cnx.close()
+
+
+@app.route('/retrieve_members/<int:course_id>', methods=['GET'])
+def retrieve_members(course_id):
+    cnx = connect_to_mysql()
+    cursor = cnx.cursor(dictionary=True)
+
+    try:
+        query = """
+        SELECT u.UserId, u.Username, u.FullName, u.Email, cr.Role
+        FROM Users u
+        JOIN CourseRegistrations cr ON u.UserId = cr.UserId
+        WHERE cr.CourseId = %s AND u.IsActive = TRUE
+        ORDER BY cr.Role, u.FullName
+        """
+        cursor.execute(query, (course_id,))
+        members = cursor.fetchall()
+        return jsonify(members), 200
+
+    except Exception as e:
+        return jsonify({'message': f'Failed to retrieve members: {str(e)}'}), 500
+
+    finally:
+        cnx.close()
+
+
+@app.route('/retrieve_calendar_events/<int:course_id>', methods=['GET'])
+def retrieve_calendar_events(course_id):
+    cnx = connect_to_mysql()
+    cursor = cnx.cursor(dictionary=True)
+
+    try:
+        query = """
+        SELECT EventId, EventName, EventDescription, EventDate, CreatedBy, CreatedAt
+        FROM CalendarEvents
+        WHERE CourseId = %s
+        ORDER BY EventDate
+        """
+        cursor.execute(query, (course_id,))
+        events = cursor.fetchall()
+        return jsonify(events), 200
+
+    except Exception as e:
+        return jsonify({'message': f'Failed to retrieve calendar events: {str(e)}'}), 500
+
+    finally:
+        cnx.close()
+
+
+@app.route('/retrieve_calendar_events_for_student', methods=['POST'])
+def retrieve_calendar_events_for_student():
+    data = request.get_json()
+    user_id = data.get('user_id')
+    event_date = data.get('event_date')
+
+    if not user_id or not event_date:
+        return jsonify({'message': 'Missing user ID or event date'}), 400
+
+    cnx = connect_to_mysql()
+    cursor = cnx.cursor(dictionary=True)
+
+    try:
+        query = """
+        SELECT ce.EventId, ce.EventName, ce.EventDescription, ce.EventDate, c.CourseName
+        FROM CalendarEvents ce
+        JOIN Courses c ON ce.CourseId = c.CourseId
+        JOIN CourseRegistrations cr ON ce.CourseId = cr.CourseId
+        WHERE cr.UserId = %s AND DATE(ce.EventDate) = DATE(%s) AND cr.Role = 'student'
+        ORDER BY ce.EventDate
+        """
+        cursor.execute(query, (user_id, event_date))
+        events = cursor.fetchall()
+        return jsonify(events), 200
+
+    except Exception as e:
+        return jsonify({'message': f'Failed to retrieve calendar events for student: {str(e)}'}), 500
+
+    finally:
+        cnx.close()
+
+
+@app.route('/create_calendar_event', methods=['POST'])
+def create_calendar_event():
+    data = request.get_json()
+    course_id = data.get('course_id')
+    event_name = data.get('event_name')
+    event_description = data.get('event_description')
+    event_date = data.get('event_date')
+    created_by = data.get('created_by')
+
+    if not course_id or not event_name or not event_date or not created_by:
+        return jsonify({'message': 'Missing required event data'}), 400
+
+    cnx = connect_to_mysql()
+    cursor = cnx.cursor()
+
+    try:
+        cursor.execute("INSERT INTO CalendarEvents (CourseId, EventName, EventDescription, EventDate, CreatedBy) VALUES (%s, %s, %s, %s, %s)",
+                       (course_id, event_name, event_description, event_date, created_by))
+        cnx.commit()
+        return jsonify({'message': 'Calendar event created successfully'}), 201
+
+    except Exception as e:
+        return jsonify({'message': f'Failed to create calendar event: {str(e)}'}), 500
+
+    finally:
+        cnx.close()
