@@ -26,7 +26,7 @@ from .forms import (
 )
 
 
-### LOAD ###
+### ----------LOAD---------- ###
 
 API_BASE_URL = "http://localhost:5000"
 app = Flask(__name__)
@@ -43,7 +43,7 @@ app.register_blueprint(views_bp)
 # flask --app app --debug run
 
 
-### BACKEND ###
+### ----------BACKEND---------- ###
 
 @app.route('/hello_world', methods=['GET'])
 def hello_world():
@@ -394,7 +394,7 @@ def create_calendar_event():
         cnx.close()
 
 
-### FRONTEND ###
+### ----------FRONTEND---------- ###
 
 @app.route('/login_page', methods=['GET', 'POST'])
 def login_page():
