@@ -1,0 +1,17 @@
+{% extends 'base.html' %}
+
+{% block title %}High Load Students{% endblock %}
+
+{% block content %}
+<h1>Students with High Course Load</h1>
+
+{% if students %}
+    <ul>
+        {% for student in students %}
+            <li>{{ student['StudentName'] }} - {{ student['CourseCount'] }} courses</li>
+        {% endfor %}
+    </ul>
+{% else %}
+    <p>No students with high course load.</p>
+{% endif %}
+{% endblock %}

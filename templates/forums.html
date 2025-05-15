@@ -1,0 +1,19 @@
+{% extends 'base.html' %}
+
+{% block title %}Forums{% endblock %}
+
+{% block content %}
+<h1>Forums</h1>
+
+{% if forums %}
+    <ul>
+        {% for forum in forums %}
+            <li>
+                <a href="{{ url_for('forum_detail_page', forum_id=forum['ForumId']) }}">{{ forum['Title'] }}</a>
+            </li>
+        {% endfor %}
+    </ul>
+{% else %}
+    <p>No forums available.</p>
+{% endif %}
+{% endblock %}

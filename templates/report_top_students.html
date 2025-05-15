@@ -1,0 +1,17 @@
+{% extends 'base.html' %}
+
+{% block title %}Top Performing Students{% endblock %}
+
+{% block content %}
+<h1>Top Performing Students</h1>
+
+{% if students %}
+    <ul>
+        {% for student in students %}
+            <li>{{ student['StudentName'] }} - Average Grade: {{ student['AverageGrade'] }}</li>
+        {% endfor %}
+    </ul>
+{% else %}
+    <p>No top-performing students available.</p>
+{% endif %}
+{% endblock %}

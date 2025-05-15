@@ -1,0 +1,30 @@
+{% extends 'base.html' %}
+
+{% block title %}Grades Overview{% endblock %}
+
+{% block content %}
+<h1>Grades Overview</h1>
+
+{% if grades %}
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Assignment</th>
+                <th>Grade</th>
+                <th>Feedback</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for grade in grades %}
+            <tr>
+                <td>{{ grade['AssignmentName'] }}</td>
+                <td>{{ grade['Grade'] }}</td>
+                <td>{{ grade['Feedback'] }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+{% else %}
+    <p>No grades available.</p>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,17 @@
+{% extends 'base.html' %}
+
+{% block title %}High Enrollment Courses{% endblock %}
+
+{% block content %}
+<h1>Courses with High Enrollment</h1>
+
+{% if courses %}
+    <ul>
+        {% for course in courses %}
+            <li>{{ course['CourseName'] }} - {{ course['EnrollmentCount'] }} students</li>
+        {% endfor %}
+    </ul>
+{% else %}
+    <p>No courses with high enrollment.</p>
+{% endif %}
+{% endblock %}

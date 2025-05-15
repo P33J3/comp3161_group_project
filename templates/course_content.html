@@ -1,0 +1,20 @@
+{% extends 'base.html' %}
+
+{% block title %}Course Content{% endblock %}
+
+{% block content %}
+<h1>Course Content</h1>
+
+{% if content %}
+    <ul>
+        {% for item in content %}
+            <li>
+                <strong>Section {{ item['Section'] }}:</strong> {{ item['Metadata'] }}<br>
+                <a href="{{ item['ContentUrl'] }}" target="_blank">View Content</a>
+            </li>
+        {% endfor %}
+    </ul>
+{% else %}
+    <p>No course content available.</p>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,33 @@
+{% extends 'base.html' %}
+
+{% block title %}Upload Assignment{% endblock %}
+
+{% block content %}
+<h1>Upload Assignment</h1>
+
+{% include 'flash_messages.html' %}
+
+<form action="{{ url_for('submit_assignment_page', assignment_id=assignment_id) }}" method="POST" enctype="multipart/form-data">
+    {{ form.hidden_tag() }}
+
+    <div class="form-group">
+        {{ form.assignment_file.label(class="form-label") }}
+        {{ form.assignment_file(class="form-control") }}
+        {% for error in form.assignment_file.errors %}
+            <div class="text-danger">{{ error }}</div>
+        {% endfor %}
+    </div>
+
+    <button type="submit" name="submit" class="btn btn-primary">Submit Assignment</button>
+</form>
+
+<hr>
+
+<div class="mt-4">
+    <h2>Other Actions</h2>
+    <ul>
+        <li><a href="{{ url_for('view_assignments_page', course_id=course_id) }}">View Assignments</a></li>
+        <li><a href="{{ url_for('dashboard_page') }}">Back to Dashboard</a></li>
+    </ul>
+</div>
+{% endblock %}

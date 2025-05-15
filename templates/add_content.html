@@ -1,0 +1,33 @@
+{% extends 'base.html' %}
+
+{% block title %}Add Course Content{% endblock %}
+
+{% block content %}
+<h1>Add Course Content</h1>
+
+<form method="POST" action="{{ url_for('add_content_page', course_id=course_id) }}" enctype="multipart/form-data">
+    {{ form.hidden_tag() }}
+    <div class="form-group">
+        {{ form.section.label(class="form-label") }}
+        {{ form.section(class="form-control") }}
+        {% for error in form.section.errors %}
+            <div class="text-danger">{{ error }}</div>
+        {% endfor %}
+    </div>
+    <div class="form-group">
+        {{ form.content_file.label(class="form-label") }}
+        {{ form.content_file(class="form-control") }}
+        {% for error in form.content_file.errors %}
+            <div class="text-danger">{{ error }}</div>
+        {% endfor %}
+    </div>
+    <div class="form-group">
+        {{ form.metadata.label(class="form-label") }}
+        {{ form.metadata(class="form-control") }}
+        {% for error in form.metadata.errors %}
+            <div class="text-danger">{{ error }}</div>
+        {% endfor %}
+    </div>
+    <button type="submit" class="btn btn-primary">{{ form.submit.label }}</button>
+</form>
+{% endblock %}

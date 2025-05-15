@@ -1,0 +1,80 @@
+{% extends 'base.html' %}
+
+{% block title %}Course Details{% endblock %}
+
+{% block content %}
+<h1>{{ course['CourseName'] }}</h1>
+<p><strong>Number of Students:</strong> {{ course['StudentCount'] }}</p>
+<p><strong>Lecturer:</strong> {{ course['LecturerName'] }}</p>
+
+<hr>
+
+<nav class="navbar navbar-expand-lg navbar-light bg-light">
+  <div class="container-fluid">
+    <ul class="navbar-nav">
+      <!-- Assignments -->
+      <li class="nav-item dropdown">
+        <a class="nav-link dropdown-toggle" href="#" id="assignmentsDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+          Assignments
+        </a>
+        <ul class="dropdown-menu" aria-labelledby="assignmentsDropdown">
+          <li><a class="dropdown-item" href="{{ url_for('view_assignments_page', course_id=course['CourseId']) }}">View Assignments</a></li>
+          {% if session['user']['Role'] == 'lecturer' %}
+          <li><a class="dropdown-item" href="{{ url_for('create_assignment_page', course_id=course['CourseId']) }}">Create Assignment</a></li>
+          {% endif %}
+        </ul>
+      </li>
+
+      <!-- Events -->
+      <li class="nav-item dropdown">
+        <a class="nav-link dropdown-toggle" href="#" id="eventsDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+          Events
+        </a>
+        <ul class="dropdown-menu" aria-labelledby="eventsDropdown">
+          <li><a class="dropdown-item" href="{{ url_for('retrieve_calendar_events_page', course_id=course['CourseId']) }}">View Events</a></li>
+          {% if session['user']['Role'] == 'lecturer' %}
+          <li><a class="dropdown-item" href="{{ url_for('create_event_page', course_id=course['CourseId']) }}">Create Event</a></li>
+          {% endif %}
+        </ul>
+      </li>
+
+      <!-- Forums -->
+      <li class="nav-item dropdown">
+        <a class="nav-link dropdown-toggle" href="#" id="forumsDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+          Forums
+        </a>
+        <ul class="dropdown-menu" aria-labelledby="forumsDropdown">
+          <li><a class="dropdown-item" href="{{ url_for('forums_page', course_id=course['CourseId']) }}">Participate in Forums</a></li>
+          {% if session['user']['Role'] == 'lecturer' %}
+          <li><a class="dropdown-item" href="{{ url_for('create_forum_page', course_id=course['CourseId']) }}">Create Forum</a></li>
+          {% endif %}
+        </ul>
+      </li>
+
+      <!-- Course Content -->
+      <li class="nav-item dropdown">
+        <a class="nav-link dropdown-toggle" href="#" id="contentDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+          Course Content
+        </a>
+        <ul class="dropdown-menu" aria-labelledby="contentDropdown">
+          <li><a class="dropdown-item" href="{{ url_for('view_course_content_page', course_id=course['CourseId']) }}">View Course Content</a></li>
+          {% if session['user']['Role'] == 'lecturer' %}
+          <li><a class="dropdown-item" href="{{ url_for('add_content_page', course_id=course['CourseId']) }}">Add Course Content</a></li>
+          {% endif %}
+        </ul>
+      </li>
+
+      <!-- Grades -->
+      {% if session['user']['Role'] == 'student' %}
+      <li class="nav-item">
+        <a class="nav-link" href="{{ url_for('view_average_grade_page', course_id=course['CourseId']) }}">View Average Grade</a>
+      </li>
+      {% elif session['user']['Role'] == 'lecturer' %}
+      <li class="nav-item">
+        <a class="nav-link" href="{{ url_for('grade_assignment_page', submission_id=0) }}">Grade Assignments</a>
+      </li>
+      {% endif %}
+    </ul>
+  </div>
+</nav>
+{% endblock %}

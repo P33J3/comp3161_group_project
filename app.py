@@ -47,10 +47,6 @@ app.register_blueprint(views_bp)
 ### ----------BACKEND---------- ###
 
 
-@app.route('/hello_world', methods=['GET'])
-def hello_world():
-    return "hello world"
-
 @app.route('/login', methods=['POST'])
 def login():
     data = request.get_json()
@@ -541,6 +537,42 @@ def course_detail_page(course_id):
     return render_template('course_detail.html', course_id=course_id, members=members)
 
 
+@app.route('/view_course_content_page/<int:course_id>')
+def view_course_content_page(course_id):
+    headers = {'Authorization': f"Bearer {session['token']}"}
+    response = requests.get(f"{API_BASE_URL}/course_content/{course_id}", headers=headers)
+    content = response.json() if response.status_code == 200 else []
+    return render_template('course_content.html', content=content)
+
+
+@app.route('/create_assignment_page/<int:course_id>', methods=['GET', 'POST'])
+def create_assignment_page(course_id):
+    form = CreateAssignmentForm()
+    if form.validate_on_submit():
+        headers = {'Authorization': f"Bearer {session['token']}"}
+        data = {
+            'course_id': course_id,
+            'assignment_name': form.assignment_name.data,
+            'assignment_description': form.assignment_description.data,
+            'due_date': str(form.due_date.data),
+            'created_by': session['user']['UserId']
+        }
+        response = requests.post(f"{API_BASE_URL}/create_assignment", json=data, headers=headers)
+        if response.status_code == 201:
+            flash('Assignment created successfully.', 'success')
+            return redirect(url_for('course_detail_page', course_id=course_id))
+        flash(response.json().get('message', 'Failed to create assignment'), 'danger')
+    return render_template('create_assignment.html', form=form)
+
+
+@app.route('/view_assignments_page/<int:course_id>')
+def view_assignments_page(course_id):
+    headers = {'Authorization': f"Bearer {session['token']}"}
+    response = requests.get(f"{API_BASE_URL}/retrieve_assignments/{course_id}", headers=headers)
+    assignments = response.json() if response.status_code == 200 else []
+    return render_template('assignments.html', assignments=assignments)
+
+
 @app.route('/submit_assignment_page/<int:assignment_id>', methods=['GET', 'POST'])
 def submit_assignment_page(assignment_id):
     form = AssignmentSubmissionForm()
@@ -577,6 +609,32 @@ def create_event_page(course_id):
             return redirect(url_for('course_detail_page', course_id=course_id))
         flash(response.json().get('message', 'Failed to create event'), 'danger')
     return render_template('create_event.html', form=form)
+
+
+@app.route('/retrieve_calendar_events_for_student_page', methods=['GET'])
+def retrieve_calendar_events_for_student_page():
+    user = session.get('user')
+    if not user:
+        return redirect(url_for('login_page'))
+
+    headers = {'Authorization': f"Bearer {session['token']}"}
+    data = {
+        'user_id': user['UserId'],
+        'event_date': datetime.date.today().strftime('%Y-%m-%d')
+    }
+    response = requests.get(f"{API_BASE_URL}/retrieve_calendar_events_for_student", json=data, headers=headers)
+    events = response.json() if response.status_code == 200 else []
+    if not events:
+        flash('No upcoming events found.', 'info')
+    return render_template('calendar_events.html', events=events)
+
+
+@app.route('/retrieve_calendar_events_page/<int:course_id>')
+def retrieve_calendar_events_page(course_id):
+    headers = {'Authorization': f"Bearer {session['token']}"}
+    response = requests.get(f"{API_BASE_URL}/retrieve_calendar_events/{course_id}", headers=headers)
+    events = response.json() if response.status_code == 200 else []
+    return render_template('calendar_events.html', events=events)
 
 
 @app.route('/add_content_page/<int:course_id>', methods=['GET', 'POST'])
