@@ -33,6 +33,7 @@ app = Flask(__name__)
 app.config.from_object(Config)
 # app.config['VALID_DEPARTMENTS']
 
+csrf = CSRFProtect(app)
 
 app.register_blueprint(courses_bp)
 app.register_blueprint(content_bp)
@@ -44,6 +45,7 @@ app.register_blueprint(views_bp)
 
 
 ### ----------BACKEND---------- ###
+
 
 @app.route('/hello_world', methods=['GET'])
 def hello_world():
@@ -121,7 +123,7 @@ def register_user():
     department = data.get('department')
 
     # Enforce the rule: Only lecturers can be admins
-    if role == 'admin' and role != 'lecturer':
+    if role == 'admin' and department is None:
         return jsonify({'message': 'Only lecturers can be admins'}), 400
 
     if not username or not password or not role or role not in ('admin', 'lecturer', 'student') or not first_name or not last_name:
@@ -284,6 +286,7 @@ def register_for_course():
         return jsonify({'message': f'Failed to register for course: {str(e)}'}), 500
 
     finally:
+        cursor.close()
         cnx.close()
 
 
@@ -294,11 +297,11 @@ def retrieve_members(course_id):
 
     try:
         query = """
-        SELECT u.UserId, u.Username, u.FullName, u.Email, cr.Role
+        SELECT u.UserId, u.Username, CONCAT(u.FirstName, ' ', u.LastName) AS FullName, u.Email, cr.Role
         FROM Users u
         JOIN CourseRegistrations cr ON u.UserId = cr.UserId
         WHERE cr.CourseId = %s AND u.IsActive = TRUE
-        ORDER BY cr.Role, u.FullName
+        ORDER BY cr.Role, FullName
         """
         cursor.execute(query, (course_id,))
         members = cursor.fetchall()
@@ -378,6 +381,11 @@ def create_calendar_event():
     if not course_id or not event_name or not event_date or not created_by:
         return jsonify({'message': 'Missing required event data'}), 400
 
+    try:
+        datetime.strptime(event_date, '%Y-%m-%d')
+    except ValueError:
+        return jsonify({'message': 'Invalid event date format. Use YYYY-MM-DD.'}), 400
+
     cnx = connect_to_mysql()
     cursor = cnx.cursor()
 
@@ -394,7 +402,41 @@ def create_calendar_event():
         cnx.close()
 
 
+@app.route('/submit_assignment', methods=['POST'])
+def submit_assignment():
+    data = request.get_json()
+    assignment_id = data.get('assignment_id')
+    student_id = data.get('student_id')
+    submission_content = data.get('submission_content')
+
+    if not assignment_id or not student_id or not submission_content:
+        return jsonify({'message': 'Missing required data'}), 400
+
+    cnx = connect_to_mysql()
+    cursor = cnx.cursor()
+
+    try:
+        cursor.execute("SELECT COUNT(*) FROM Assignment WHERE AssignmentId = %s", (assignment_id,))
+        if cursor.fetchone()[0] == 0:
+            return jsonify({'message': 'Invalid AssignmentId'}), 400
+
+        cursor.execute("""
+            INSERT INTO Submission (AssignmentId, StudentID, SubmissionContent)
+            VALUES (%s, %s, %s)
+        """, (assignment_id, student_id, submission_content))
+        cnx.commit()
+        return jsonify({'message': 'Assignment submitted successfully'}), 201
+
+    except Exception as e:
+        return jsonify({'message': f'Failed to submit assignment: {str(e)}'}), 500
+
+    finally:
+        cursor.close()
+        cnx.close()
+
+
 ### ----------FRONTEND---------- ###
+
 
 @app.route('/login_page', methods=['GET', 'POST'])
 def login_page():
@@ -454,9 +496,10 @@ def create_course_page():
         headers = {'Authorization': f"Bearer {session['token']}"}
         data = {
             'course_name': form.course_name.data,
-            'department': form.department.data
+            'course_description': form.course_description.data,
+            'created_by': session['user']['UserId']
         }
-        response = requests.post(f"{API_BASE_URL}/createcourse", json=data, headers=headers)
+        response = requests.post(f"{API_BASE_URL}/create_course", json=data, headers=headers)
         if response.status_code == 201:
             flash('Course created successfully.', 'success')
             return redirect(url_for('dashboard_page'))
@@ -467,16 +510,19 @@ def create_course_page():
 @app.route('/my_courses_page')
 def my_courses_page():
     user = session.get('user')
+    if not user:
+        return redirect(url_for('login_page'))
+    
     headers = {'Authorization': f"Bearer {session['token']}"}
     role = user['Role']
     user_id = user['UserId']
 
     if role == 'student':
-        url = f"{API_BASE_URL}/student/{user_id}/courses"
+        url = f"{API_BASE_URL}/retrieve_courses_for_student/{user_id}"
     elif role == 'lecturer':
-        url = f"{API_BASE_URL}/lecturer/{user_id}/courses"
+        url = f"{API_BASE_URL}/retrieve_courses_for_lecturer/{user_id}"
     else:
-        url = f"{API_BASE_URL}/courses"
+        url = f"{API_BASE_URL}/retrieve_courses"
 
     response = requests.get(url, headers=headers)
     courses = response.json() if response.status_code == 200 else []
@@ -487,17 +533,29 @@ def my_courses_page():
 def course_detail_page(course_id):
     headers = {'Authorization': f"Bearer {session['token']}"}
     response = requests.get(f"{API_BASE_URL}/retrieve_members/{course_id}", headers=headers)
-    members = response.json() if response.status_code == 200 else []
+    if response.status_code == 200:
+        members = response.json()
+    else:
+        members = []
+        flash('Failed to retrieve course members.', 'danger')
     return render_template('course_detail.html', course_id=course_id, members=members)
 
 
-@app.route('/submit_assignment_page/<int:course_id>', methods=['GET', 'POST'])
-def submit_assignment_page(course_id):
+@app.route('/submit_assignment_page/<int:assignment_id>', methods=['GET', 'POST'])
+def submit_assignment_page(assignment_id):
     form = AssignmentSubmissionForm()
     if form.validate_on_submit():
-        # Example: Call your API if implemented
-        flash('Assignment submitted.', 'success')
-        return redirect(url_for('course_detail_page', course_id=course_id))
+        headers = {'Authorization': f"Bearer {session['token']}"}
+        data = {
+            'assignment_id': assignment_id,
+            'student_id': session['user']['UserId'],
+            'submission_content': form.assignment_file.data
+        }
+        response = requests.post(f"{API_BASE_URL}/submit_assignment", json=data, headers=headers)
+        if response.status_code == 201:
+            flash('Assignment submitted successfully.', 'success')
+            return redirect(url_for('dashboard_page'))
+        flash(response.json().get('message', 'Failed to submit assignment'), 'danger')
     return render_template('uploadsubmission.html', form=form)
 
 
@@ -508,8 +566,8 @@ def create_event_page(course_id):
         headers = {'Authorization': f"Bearer {session['token']}"}
         data = {
             'course_id': course_id,
-            'event_name': form.description.data,  # map to name
-            'event_description': form.description.data,
+            'event_name': form.event_name.data,
+            'event_description': form.event_description.data,
             'event_date': str(form.event_date.data),
             'created_by': session['user']['UserId']
         }
@@ -517,9 +575,8 @@ def create_event_page(course_id):
         if response.status_code == 201:
             flash('Event created.', 'success')
             return redirect(url_for('course_detail_page', course_id=course_id))
-        flash('Failed to create event.', 'danger')
+        flash(response.json().get('message', 'Failed to create event'), 'danger')
     return render_template('create_event.html', form=form)
-
 
 
 @app.route('/add_content_page/<int:course_id>', methods=['GET', 'POST'])
@@ -533,8 +590,15 @@ def add_content_page(course_id):
 
 @app.route('/forums_page/<int:course_id>')
 def forums_page(course_id):
-    # Call API if implemented
-    forums = []
+    headers = {'Authorization': f"Bearer {session['token']}"}
+    response = requests.get(f"{API_BASE_URL}/forums/{course_id}", headers=headers)
+    
+    if response.status_code == 200:
+        forums = response.json()
+    else:
+        forums = []
+        flash('Failed to retrieve forums.', 'danger')
+    
     return render_template('forums.html', forums=forums)
 
 
