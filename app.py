@@ -503,6 +503,24 @@ def create_course_page():
     return render_template('create_course.html', form=form)
 
 
+@app.route('/register_for_course_page', methods=['GET', 'POST'])
+def register_for_course_page():
+    form = RegisterForCourseForm()
+    if form.validate_on_submit():
+        headers = {'Authorization': f"Bearer {session['token']}"}
+        data = {
+            'course_code': form.course_code.data,
+            'user_id': session['user']['UserId'],
+            'role': session['user']['Role']
+        }
+        response = requests.post(f"{API_BASE_URL}/register_for_course", json=data, headers=headers)
+        if response.status_code == 201:
+            flash('Successfully registered for the course!', 'success')
+            return redirect(url_for('dashboard_page'))
+        flash(response.json().get('message', 'Failed to register for the course'), 'danger')
+    return render_template('register_for_course.html', form=form)
+
+
 @app.route('/my_courses_page')
 def my_courses_page():
     user = session.get('user')
