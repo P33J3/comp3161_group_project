@@ -59,6 +59,11 @@ class AddContentForm(FlaskForm):
     submit = SubmitField('Add Content')
 
 
+class CreateForumForm(FlaskForm):
+    title = StringField('Forum Title', validators=[DataRequired(), Length(max=255)])
+    submit = SubmitField('Create Forum')
+
+
 class CreateThreadForm(FlaskForm):
     title = StringField('Thread Title', validators=[DataRequired(), Length(max=255)])
     post = TextAreaField('Initial Post', validators=[DataRequired()])
