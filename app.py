@@ -84,7 +84,7 @@ def login():
                 print(f"Login Successful: {token}")
                 return jsonify({'token': token}), 200
             else:
-                return jsonify({'message': 'Invalid password'}), 401
+                return jsonify({'message': 'Invalid credentials'}), 401
         else:
             return jsonify({'message': 'Invalid credentials'}), 401
 
@@ -434,7 +434,7 @@ def submit_assignment():
 ### ----------FRONTEND---------- ###
 
 
-@app.route('/', methods=['GET', 'POST'])
+@app.route('/login_page', methods=['GET', 'POST'])
 def login_page():
     form = LoginForm()
     if form.validate_on_submit():

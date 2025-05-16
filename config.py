@@ -3,7 +3,6 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-
 class Config(object):
     # MYSQL_DATBASE_URI = os.getenv('DATABASE_URI')
     MYSQL_HOST = os.environ.get('MYSQL_HOST') or 'localhost'
