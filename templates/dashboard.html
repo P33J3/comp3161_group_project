@@ -15,7 +15,7 @@
         <li>
             <a href="{{ url_for('retrieve_calendar_events_for_student_page') }}">View Upcoming Calendar Events</a>
         </li>
-        {% if session['user']['Role'] == 'admin' %}
+        {% elif session['user']['Role'] == 'admin' %}
         <li>
             <a href="{{ url_for('reports_page') }}">View Reports</a>
         </li>

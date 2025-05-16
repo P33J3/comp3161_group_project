@@ -41,6 +41,39 @@ def generate_hashed_password(password, salt):
     hash_object.update((password + salt).encode('utf-8')) # Ensure UTF-8 encoding
     return hash_object.hexdigest()
 
+def authenticate_user(username, password, config):
+    cnx = connect_to_mysql(config)
+    cursor = cnx.cursor()
+    try:
+        cursor.execute("SELECT * FROM User WHERE Username=%s", (username,))
+        user = cursor.fetchone()
+
+        if not user:
+            return None, "User not found"
+
+        stored_salt = user[4]
+        stored_hashed_password = user[2]
+        provided_hashed_password = generate_hashed_password(password, stored_salt)
+
+        if provided_hashed_password == stored_hashed_password:
+            user_data = {
+                'UserId': user[0],
+                'Username': user[1],
+                'Role': user[3]
+            }
+            token = create_jwt(user_data, config['SECRET_KEY'], config['JWT_EXPIRATION_HOURS'])
+            return token, None
+        else:
+            return None, "Invalid password"
+
+    except Exception as e:
+        print("Authentication error:", e)
+        return None, "Server error"
+
+    finally:
+        cursor.close()
+        cnx.close()
+
 def get_next_id(cnx, table_name, id_column):
     """Helper function to get the next available ID."""
 #     cnx = connect_to_mysql()
