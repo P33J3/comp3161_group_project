@@ -12,12 +12,7 @@
           </li>
           {% if session['user']['Role'] == 'admin' %}
           <li class="nav-item">
-            <a class="nav-link" href="{{ url_for('create_course_page') }}">Create Course</a>
-          </li>
-          {% endif %}
-          {% if session['user']['Role'] in ['student', 'lecturer'] %}
-          <li class="nav-item">
-            <a class="nav-link" href="{{ url_for('register_for_course_page') }}">Register for Course</a>
+            <a class="nav-link" href="{{ url_for('register_page') }}">Register</a>
           </li>
           {% endif %}
         {% endif %}

@@ -30,11 +30,6 @@ class CreateCourseForm(FlaskForm):
     submit = SubmitField('Create Course')
 
 
-class RegisterForCourseForm(FlaskForm):
-    course_code = StringField('Course Code', validators=[DataRequired(), Length(max=10)])
-    submit = SubmitField('Register')
-
-
 class AssignmentSubmissionForm(FlaskForm):
     assignment_file = FileField('Upload Submission', validators=[
         FileAllowed(['pdf', 'doc', 'docx', 'zip', 'txt'], 'Allowed file types: pdf, doc, docx, zip, txt'),
