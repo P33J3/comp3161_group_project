@@ -1,5 +1,4 @@
 from flask import Flask, request, make_response, jsonify
-from flask_wtf.csrf import CSRFProtect
 import mysql.connector
 import hashlib
 import uuid
@@ -28,7 +27,7 @@ app.register_blueprint(views_bp)
 # flask --app app --debug run
 
 
-### BACKEND ###
+
 
 @app.route('/hello_world', methods=['GET'])
 def hello_world():
@@ -375,6 +374,3 @@ def create_calendar_event():
 
     finally:
         cnx.close()
-
-
-### FRONTEND ###
