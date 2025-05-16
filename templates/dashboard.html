@@ -3,19 +3,22 @@
 {% block title %}Dashboard{% endblock %}
 
 {% block content %}
-<h1>Welcome, {{ session['user']['Username'] }}!</h1>
+<h1>Welcome!</h1>
 
 <div class="mt-4">
     <h2>Quick Links</h2>
     <ul>
         <li>
-            <a href="{{ url_for('my_courses_page') }}">View My Registered Courses</a>
+            <a href="{{ url_for('my_courses_page') }}">View My Registered Courses</a>]
         </li>
-        {% if session['user']['Role'] == 'student' %}
+        <li>
+            <a href="{{ url_for('register_for_course_page') }}">Register for a Course</a>
+        </li>
+        {% if session['user']['role'] == 'student' %}
         <li>
             <a href="{{ url_for('retrieve_calendar_events_for_student_page') }}">View Upcoming Calendar Events</a>
         </li>
-        {% elif session['user']['Role'] == 'admin' %}
+        {% elif session['user']['role'] == 'admin' %}
         <li>
             <a href="{{ url_for('reports_page') }}">View Reports</a>
         </li>

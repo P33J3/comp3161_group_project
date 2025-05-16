@@ -9,12 +9,12 @@
     <ul>
         {% for assignment in assignments %}
             <li>
-                <strong>{{ assignment['Title'] }}</strong> - Due: {{ assignment['DueDate'] }}<br>
-                {{ assignment['Description'] }}
-                {% if session['user']['Role'] == 'student' %}
-                    <a href="{{ url_for('submit_assignment_page', assignment_id=assignment['AssignmentId']) }}">Submit</a>
-                {% elif session['user']['Role'] == 'lecturer' %}
-                    <a href="{{ url_for('grade_assignment_page', submission_id=assignment['AssignmentId']) }}">Grade</a>
+                <strong>{{ assignment['title'] }}</strong> - Due: {{ assignment['due_date'] }}<br>
+                {{ assignment['description'] }}
+                {% if session['user']['role'] == 'student' %}
+                <a href="{{ url_for('submit_assignment_page', assignment_id=assignment['assignment_id']) }}">Submit</a>
+                {% elif session['user']['role'] == 'lecturer' %}
+                <a href="{{ url_for('grade_assignment_page', submission_id=assignment['assignment_id']) }}">Grade</a>
                 {% endif %}
             </li>
         {% endfor %}

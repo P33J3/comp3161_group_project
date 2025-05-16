@@ -2,6 +2,7 @@ from flask import Blueprint, jsonify, request, current_app as app
 from .utilities import connect_to_mysql, token_required
 from .config import Config
 from datetime import datetime
+import base64
 
 content_bp = Blueprint('content', __name__)
 
