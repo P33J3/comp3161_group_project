@@ -98,19 +98,6 @@ form {
     text-decoration: underline;
 }
 
-.dropdown-menu {
-    background-color: #f8f9fa;
-}
-
-.dropdown-item {
-    color: #212529 !important;
-}
-
-.dropdown-item:hover {
-    background-color: #e2e6ea;
-}
-
-
 button {
     background-color: #007bff;
     color: white;

@@ -10,7 +10,7 @@
 
 <hr>
 
-<nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+<nav class="navbar navbar-expand-lg navbar-light bg-light">
   <div class="container-fluid">
     <ul class="navbar-nav">
       <!-- Assignments -->
@@ -20,6 +20,9 @@
         </a>
         <ul class="dropdown-menu" aria-labelledby="assignmentsDropdown">
           <li><a class="dropdown-item" href="{{ url_for('view_assignments_page', course_id=course['CourseId']) }}">View Assignments</a></li>
+          {% if session['user']['Role'] == 'lecturer' %}
+          <li><a class="dropdown-item" href="{{ url_for('create_assignment_page', course_id=course['CourseId']) }}">Create Assignment</a></li>
+          {% endif %}
         </ul>
       </li>
 

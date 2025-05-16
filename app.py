@@ -1,6 +1,6 @@
 from flask import (
     Flask, render_template, redirect, url_for,
-    session, flash, request, jsonify, make_response
+    session, flash, request
 )
 from flask_wtf.csrf import CSRFProtect
 from werkzeug.utils import secure_filename
@@ -16,9 +16,10 @@ from functools import wraps # Import wraps for decorator
 from .courses_routes import courses_bp
 from .content_routes import content_bp
 from .views_routes import views_bp
-from .utilities import *
+from .utilities import (connect_to_mysql,
+generate_salt, generate_hashed_password, authenticate_user, get_next_user_id,
+get_next_student_id, get_next_lec_id, create_jwt, decode_jwt, token_required)
 from .forms import *
-import base64
 
 
 ### ----------LOAD---------- ###
@@ -132,7 +133,7 @@ def create_course():
     if not course_name or not created_by:
         return jsonify({'message': 'Missing course name or creator ID'}), 400
 
-    cnx = connect_to_mysql(app.config)
+    cnx = connect_to_mysql()
     cursor = cnx.cursor()
 
     try:
@@ -155,7 +156,7 @@ def create_course():
 
 @app.route('/retrieve_courses', methods=['GET'])
 def retrieve_courses():
-    cnx = connect_to_mysql(app.config)
+    cnx = connect_to_mysql()
     cursor = cnx.cursor(dictionary=True)
 
     try:
@@ -172,24 +173,17 @@ def retrieve_courses():
 
 @app.route('/retrieve_courses_for_student/<int:user_id>', methods=['GET'])
 def retrieve_courses_for_student(user_id):
-    cnx = connect_to_mysql(app.config)
+    cnx = connect_to_mysql()
     cursor = cnx.cursor(dictionary=True)
 
     try:
-        cursor.execute("SELECT StudentID FROM Student WHERE UserId = %s", (user_id,))
-        result = cursor.fetchone()
-        if not result:
-            return jsonify([]), 200
-
-        student_id = result['StudentID']
-
         query = """
-        SELECT c.CourseId, c.CourseName, c.CourseCode
-        FROM Enrollment e
-        JOIN Course c ON e.CourseId = c.CourseId
-        WHERE e.StudentID = %s
+        SELECT c.CourseId, c.CourseName, c.CourseDescription, c.CreatedAt
+        FROM Courses c
+        JOIN CourseRegistrations cr ON c.CourseId = cr.CourseId
+        WHERE cr.UserId = %s AND cr.Role = 'student' AND c.IsActive = TRUE
         """
-        cursor.execute(query, (student_id,))
+        cursor.execute(query, (user_id,))
         courses = cursor.fetchall()
         return jsonify(courses), 200
 
@@ -200,32 +194,24 @@ def retrieve_courses_for_student(user_id):
         cnx.close()
 
 
-
 @app.route('/retrieve_courses_for_lecturer/<int:user_id>', methods=['GET'])
 def retrieve_courses_for_lecturer(user_id):
-    cnx = connect_to_mysql(app.config)
+    cnx = connect_to_mysql()
     cursor = cnx.cursor(dictionary=True)
 
     try:
-        cursor.execute("SELECT LecId FROM Lecturer WHERE UserId = %s", (user_id,))
-        result = cursor.fetchone()
-        if not result:
-            return jsonify([]), 200
-
-        lec_id = result['LecId']
-
         query = """
-        SELECT c.CourseId, c.CourseName, c.CourseCode
-        FROM Enrollment e
-        JOIN Course c ON e.CourseId = c.CourseId
-        WHERE e.StudentID = %s
+        SELECT c.CourseId, c.CourseName, c.CourseDescription, c.CreatedAt
+        FROM Courses c
+        JOIN CourseRegistrations cr ON c.CourseId = cr.CourseId
+        WHERE cr.UserId = %s AND cr.Role = 'lecturer' AND c.IsActive = TRUE
         """
-        cursor.execute(query, (lec_id,))
+        cursor.execute(query, (user_id,))
         courses = cursor.fetchall()
         return jsonify(courses), 200
 
     except Exception as e:
-        return jsonify({'message': f'Failed to retrieve courses for student: {str(e)}'}), 500
+        return jsonify({'message': f'Failed to retrieve courses for lecturer: {str(e)}'}), 500
 
     finally:
         cnx.close()
@@ -241,41 +227,18 @@ def register_for_course():
     if not course_id or not user_id or not role:
         return jsonify({'message': 'Missing course ID, user ID, or role'}), 400
 
-    cnx = connect_to_mysql(app.config)
+    cnx = connect_to_mysql()
     cursor = cnx.cursor()
 
     try:
         if role == 'lecturer':
-            cursor.execute("SELECT LecId FROM Lecturer WHERE UserId = %s", (user_id,))
-            result = cursor.fetchone()
-            if not result:
-                return jsonify({'message': 'Lecturer not found'}), 400
-
-            lec_id = result[0]
-
             # Ensure only one lecturer is assigned to a course
-            cursor.execute("SELECT COUNT(*) FROM CourseLecturer WHERE CourseId = %s AND Role = 'lecturer'", (course_id,))
+            cursor.execute("SELECT COUNT(*) FROM CourseRegistrations WHERE CourseId = %s AND Role = 'lecturer'", (course_id,))
             if cursor.fetchone()[0] > 0:
                 return jsonify({'message': 'A lecturer is already assigned to this course'}), 400
-            else:
-                cursor.execute("INSERT INTO CourseLecturer (CourseId, LecId) VALUES (%s, %s, %s)",
-                               (course_id, lec_id))
 
-        elif role == 'student':
-            cursor.execute("SELECT StudentID FROM Student WHERE UserId = %s", (user_id,))
-            result = cursor.fetchone()
-            if not result:
-                return jsonify({'message': 'Student not found'}), 400
-
-            student_id = result[0]
-        
-            cursor.execute(
-                "INSERT INTO Enrollment (StudentID, CourseId, Grade) VALUES (%s, %s, %s)",
-                (student_id, course_id, 0)
-            )
-        else:
-            return jsonify({'message': 'Invalid role'}), 400
-        
+        cursor.execute("INSERT INTO CourseRegistrations (CourseId, UserId, Role) VALUES (%s, %s, %s)",
+                       (course_id, user_id, role))
         cnx.commit()
         return jsonify({'message': 'User registered for course successfully'}), 201
 
@@ -285,12 +248,11 @@ def register_for_course():
     finally:
         cursor.close()
         cnx.close()
-csrf.exempt(register_for_course)
 
 
 @app.route('/retrieve_members/<int:course_id>', methods=['GET'])
 def retrieve_members(course_id):
-    cnx = connect_to_mysql(app.config)
+    cnx = connect_to_mysql()
     cursor = cnx.cursor(dictionary=True)
 
     try:
@@ -314,7 +276,7 @@ def retrieve_members(course_id):
 
 @app.route('/retrieve_calendar_events/<int:course_id>', methods=['GET'])
 def retrieve_calendar_events(course_id):
-    cnx = connect_to_mysql(app.config)
+    cnx = connect_to_mysql()
     cursor = cnx.cursor(dictionary=True)
 
     try:
@@ -344,7 +306,7 @@ def retrieve_calendar_events_for_student():
     if not user_id or not event_date:
         return jsonify({'message': 'Missing user ID or event date'}), 400
 
-    cnx = connect_to_mysql(app.config)
+    cnx = connect_to_mysql()
     cursor = cnx.cursor(dictionary=True)
 
     try:
@@ -385,7 +347,7 @@ def create_calendar_event():
         return jsonify({'message': 'Invalid event date format. Use YYYY-MM-DD.'}), 400
 
     cnx = connect_to_mysql()
-    cursor = cnx.cursor(app.config)
+    cursor = cnx.cursor()
 
     try:
         cursor.execute("INSERT INTO CalendarEvents (CourseId, EventName, EventDescription, EventDate, CreatedBy) VALUES (%s, %s, %s, %s, %s)",
@@ -400,9 +362,42 @@ def create_calendar_event():
         cnx.close()
 
 
+@app.route('/submit_assignment', methods=['POST'])
+def submit_assignment():
+    data = request.get_json()
+    assignment_id = data.get('assignment_id')
+    student_id = data.get('student_id')
+    submission_content = data.get('submission_content')
+
+    if not assignment_id or not student_id or not submission_content:
+        return jsonify({'message': 'Missing required data'}), 400
+
+    cnx = connect_to_mysql()
+    cursor = cnx.cursor()
+
+    try:
+        cursor.execute("SELECT COUNT(*) FROM Assignment WHERE AssignmentId = %s", (assignment_id,))
+        if cursor.fetchone()[0] == 0:
+            return jsonify({'message': 'Invalid AssignmentId'}), 400
+
+        cursor.execute("""
+            INSERT INTO Submission (AssignmentId, StudentID, SubmissionContent)
+            VALUES (%s, %s, %s)
+        """, (assignment_id, student_id, submission_content))
+        cnx.commit()
+        return jsonify({'message': 'Assignment submitted successfully'}), 201
+
+    except Exception as e:
+        return jsonify({'message': f'Failed to submit assignment: {str(e)}'}), 500
+
+    finally:
+        cursor.close()
+        cnx.close()
+
+
 @app.route('/forums/<int:course_id>', methods=['GET'])
 def get_forums(course_id):
-    cnx = connect_to_mysql(app.config)
+    cnx = connect_to_mysql()
     cursor = cnx.cursor(dictionary=True)
     try:
         cursor.execute("SELECT * FROM Forum WHERE CourseId = %s", (course_id,))
@@ -424,7 +419,7 @@ def create_thread():
     if not forum_id or not user_id or not title or not post:
         return jsonify({'message': 'Missing thread data'}), 400
 
-    cnx = connect_to_mysql(app.config)
+    cnx = connect_to_mysql()
     cursor = cnx.cursor()
     try:
         cursor.execute("SELECT MAX(ThreadId) FROM DiscussionThread")
@@ -441,7 +436,7 @@ def create_thread():
 
 @app.route('/retrieve_thread/<int:thread_id>', methods=['GET'])
 def retrieve_thread(thread_id):
-    cnx = connect_to_mysql(app.config)
+    cnx = connect_to_mysql()
     cursor = cnx.cursor(dictionary=True)
     try:
         cursor.execute("SELECT * FROM DiscussionThread WHERE ThreadId = %s", (thread_id,))
@@ -462,7 +457,7 @@ def post_reply():
     if not parent_thread_id or not user_id or not reply_text:
         return jsonify({'message': 'Missing reply data'}), 400
 
-    cnx = connect_to_mysql(app.config)
+    cnx = connect_to_mysql()
     cursor = cnx.cursor()
     try:
         cursor.execute("SELECT MAX(ThreadId) FROM DiscussionThread")
@@ -478,6 +473,29 @@ def post_reply():
     finally:
         cnx.close()
 
+@app.route('/grade_submission/<int:submission_id>', methods=['POST'])
+def grade_submission(submission_id):
+    data = request.get_json()
+    grade = data.get('grade')
+    feedback = data.get('feedback')
+
+    if grade is None:
+        return jsonify({'message': 'Grade is required'}), 400
+
+    cnx = connect_to_mysql()
+    cursor = cnx.cursor()
+    try:
+        cursor.execute("SELECT MAX(GradeId) FROM Grade")
+        next_id = cursor.fetchone()[0] or 0
+        grade_id = next_id + 1
+        cursor.execute("INSERT INTO Grade (GradeId, SubmissionId, Grade, Feedback) VALUES (%s, %s, %s, %s)",
+                       (grade_id, submission_id, grade, feedback))
+        cnx.commit()
+        return jsonify({'message': 'Grade submitted successfully'}), 201
+    except Exception as e:
+        return jsonify({'message': f'Failed to submit grade: {str(e)}'}), 500
+    finally:
+        cnx.close()
 
 
 ### ----------FRONTEND---------- ###
@@ -509,20 +527,6 @@ def register_page():
     return render_template('register.html', form=form)
 
 
-@app.route('/logout_page')
-def logout_page():
-    session.clear()
-    flash('Logged out.', 'info')
-    return redirect(url_for('login_page'))
-
-
-@app.route('/dashboard_page')
-def dashboard_page():
-    if 'user' not in session:
-        return redirect(url_for('login_page'))
-    return render_template('dashboard.html')
-
-
 @app.route('/create_course_page', methods=['GET', 'POST'])
 def create_course_page():
     form = CreateCourseForm()
@@ -539,7 +543,7 @@ def create_course_page():
 def register_for_course_page():
     form = RegisterForCourseForm()
     if form.validate_on_submit():
-        success, error = register_for_course_helper(form.course_code.data, session['user'], app.config, app)
+        success, error = register_for_course(form.course_id.data, session['user'], app.config)
         if success:
             flash('Successfully registered for the course!', 'success')
             return redirect(url_for('dashboard_page'))
@@ -551,82 +555,27 @@ def register_for_course_page():
 def my_courses_page():
     user = session.get('user')
     if not user:
-        flash("Session expired. Please log in again.", "warning")
         return redirect(url_for('login_page'))
 
-    try:
-        user_id = user['user_id']
-        role = user['role']
-    except KeyError:
-        flash("Session is malformed. Please log in again.", "danger")
-        return redirect(url_for('logout_page'))
+    user_id = user['UserId']
+    role = user['Role']
 
     if role == 'student':
-        response, status_code = retrieve_courses_for_student(user_id)
+        response = retrieve_courses_for_student(user_id)
     elif role == 'lecturer':
-        response, status_code = retrieve_courses_for_lecturer(user_id)
+        response = retrieve_courses_for_lecturer(user_id)
     else:
-        response, status_code = retrieve_courses()
+        response = retrieve_courses()
 
-    courses = response.get_json() if status_code == 200 else []
-    return render_template('courses.html', courses=courses)
-
+    courses = response.get_json() if response.status_code == 200 else []
+    return render_template('my_courses.html', courses=courses)
 
 
 @app.route('/course_page/<int:course_id>')
 def course_detail_page(course_id):
-    # Get course members
-    response_data, status_code = retrieve_members(course_id)
-    members = response_data.get_json() if status_code == 200 else []
-
-    # Get course info
-    cnx = connect_to_mysql(app.config)
-    cursor = cnx.cursor(dictionary=True)
-
-    try:
-        cursor.execute("""
-            SELECT c.CourseId, c.CourseName, c.CourseCode,
-                COUNT(DISTINCT e.StudentID) AS StudentCount,
-                GROUP_CONCAT(DISTINCT CONCAT(l.LecFirstName, ' ', l.LecLastName)) AS LecturerName
-            FROM Course c
-            LEFT JOIN Enrollment e ON c.CourseId = e.CourseId
-            LEFT JOIN CourseLecturer cl ON c.CourseId = cl.CourseId
-            LEFT JOIN Lecturer l ON cl.LecId = l.LecId
-            WHERE c.CourseId = %s
-            GROUP BY c.CourseId, c.CourseName, c.CourseCode
-        """, (course_id,))
-        course = cursor.fetchone()
-        print(f"Course ID: {course_id} — Found: {course is not None}")
-        if not course:
-            flash('Course not found.', 'danger')
-            return redirect(url_for('my_courses_page'))
-
-    except Exception as e:
-        flash(f'Error retrieving course: {str(e)}', 'danger')
-        course = None
-
-    finally:
-        cnx.close()
-
-    return render_template('course_detail.html', course_id=course_id, members=members, course=course)
-
-
-@app.route('/view_assignments_page/<int:course_id>')
-def view_assignments_page(course_id):
-    user = session.get('user')
-    if not user:
-        return redirect(url_for('login_page'))
-
-    headers = {'Authorization': f"Bearer {session['token']}"}
-    response = requests.get(
-        f"http://localhost:5000/course/{course_id}/assignments",
-        headers=headers
-    )
-
-    assignments = response.json() if response.status_code == 200 else []
-    return render_template('assignment_list.html', assignments=assignments)
-
-
+    response = retrieve_members(course_id)
+    members = response.get_json() if response.status_code == 200 else []
+    return render_template('course_detail.html', course_id=course_id, members=members)
 
 
 @app.route('/retrieve_calendar_events_for_student_page')
@@ -636,7 +585,7 @@ def retrieve_calendar_events_for_student_page():
         return redirect(url_for('login_page'))
 
     data = {
-        'user_id': user[0],
+        'user_id': user['UserId'],
         'event_date': datetime.date.today().strftime('%Y-%m-%d')
     }
     response = retrieve_calendar_events_for_student(data)
@@ -654,36 +603,13 @@ def retrieve_calendar_events_page(course_id):
 @app.route('/submit_assignment_page/<int:assignment_id>', methods=['GET', 'POST'])
 def submit_assignment_page(assignment_id):
     form = AssignmentSubmissionForm()
-    if 'user' not in session:
-        return redirect(url_for('login_page'))
-
     if form.validate_on_submit():
-        try:
-            user = session['user']
-            if user['role'] != 'student':
-                flash('Only students can submit assignments.', 'danger')
-                return redirect(url_for('dashboard_page'))
-
-            file = form.assignment_file.data
-            file_data = file.read()  # Read as bytes (no decoding)
-
-            # Call backend logic directly
-            from .content_routes import submit_assignment_logic  # Ensure this exists
-            result = submit_assignment_logic(
-                student_id=user['user_id'],
-                assignment_id=assignment_id,
-                submission_blob=file_data
-            )
-
-            if result['success']:
-                flash('Assignment submitted successfully.', 'success')
-                return redirect(url_for('dashboard_page'))
-            else:
-                flash(result['message'], 'danger')
-        except Exception as e:
-            flash(f'Unexpected error: {str(e)}', 'danger')
-
-    return render_template('upload_submission.html', form=form, assignment_id=assignment_id)
+        success, error = submit_assignment(assignment_id, form.assignment_file.data, session['user']['UserId'], app.config)
+        if success:
+            flash('Assignment submitted successfully.', 'success')
+            return redirect(url_for('dashboard_page'))
+        flash(error or 'Failed to submit assignment.', 'danger')
+    return render_template('uploadsubmission.html', form=form)
 
 
 @app.route('/forums_page/<int:course_id>')
@@ -699,7 +625,7 @@ def create_thread_page(forum_id):
     if form.validate_on_submit():
         data = {
             'forum_id': forum_id,
-            'user_id': session['user']['user_id'],
+            'user_id': session['user']['UserId'],
             'title': form.title.data,
             'post': form.post.data
         }
@@ -719,7 +645,7 @@ def thread_page(thread_id):
     if form.validate_on_submit():
         data = {
             'thread_id': thread_id,
-            'user_id': session['user']['user_id'],
+            'user_id': session['user']['UserId'],
             'reply_text': form.reply_text.data
         }
         reply_response = post_reply(data)
