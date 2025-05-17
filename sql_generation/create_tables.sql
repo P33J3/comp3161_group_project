@@ -126,7 +126,7 @@ BEGIN
     SELECT COUNT(*) INTO student_course_count
     FROM Enrollment
     WHERE StudentID = NEW.StudentID;
-    IF student_course_count > 6 THEN
+    IF student_course_count >= 6 THEN
         SIGNAL SQLSTATE '45000'
         SET MESSAGE_TEXT = 'Student cannot enroll in more than 6 courses.';
     END IF;
@@ -162,7 +162,7 @@ BEGIN
     SELECT COUNT(*) INTO lecturer_course_count
     FROM CourseLecturer
     WHERE LecId = NEW.LecId;
-    IF lecturer_course_count > 5 THEN
+    IF lecturer_course_count >= 5 THEN
         SIGNAL SQLSTATE '45000'
         SET MESSAGE_TEXT = 'Lecturer cannot teach more than 5 courses.';
     END IF;

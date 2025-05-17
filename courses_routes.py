@@ -6,7 +6,7 @@ from .utilities import get_next_course_code, get_next_course_id
 courses_bp = Blueprint('courses', __name__)
 
 
-
+#create course
 @courses_bp.route('/createcourse', methods=['POST'])
 @token_required
 def create_course(user_data):
@@ -43,7 +43,7 @@ def create_course(user_data):
         cnx.close()
 
 
-
+#get courses
 @courses_bp.route('/courses', methods=['GET'])
 @token_required
 def get_courses(user_data):
@@ -66,7 +66,7 @@ def get_courses(user_data):
         cursor.close()
         cnx.close()
 
-
+#Get student courses
 @courses_bp.route('/student/<int:student_id>/courses', methods=['GET'])
 @token_required
 def get_student_courses(user_data, student_id):
@@ -99,6 +99,7 @@ def get_student_courses(user_data, student_id):
         cursor.close()
         cnx.close()
 
+#get lecturer courses
 @courses_bp.route('/lecturer/<int:lecturer_id>/courses', methods=['GET'])
 @token_required
 def get_lecturer_courses(user_data, lecturer_id):
@@ -121,6 +122,7 @@ def get_lecturer_courses(user_data, lecturer_id):
         cnx.close()
 
 
+#assign lecturer to course
 @courses_bp.route('/course/<int:course_id>/lecturer/<int:lecturer_id>', methods=['POST'])
 @token_required
 def assign_lecturer_to_course(user_data, course_id, lecturer_id):

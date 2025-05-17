@@ -33,6 +33,7 @@ app.register_blueprint(views_bp)
 def hello_world():
     return "hello world"
 
+#login
 @app.route('/login', methods=['POST'])
 def login():
     data = request.get_json()
@@ -91,7 +92,7 @@ def protected(user_data):  # Receive user data from the decorator
     return jsonify({'message': f'Hello, {user_data["username"]}! Your role is {user_data["role"]}'})
 
 
-
+#register student or lecturer or admin
 @app.route('/register', methods=['POST'])
 def register_user():
     data = request.get_json()
@@ -143,6 +144,7 @@ def register_user():
         cnx.close()
 
 
+#create course
 @app.route('/create_course', methods=['POST'])
 def create_course():
     data = request.get_json()
@@ -174,6 +176,7 @@ def create_course():
         cnx.close()
 
 
+#retrieve courses
 @app.route('/retrieve_courses', methods=['GET'])
 def retrieve_courses():
     cnx = connect_to_mysql()
@@ -191,6 +194,7 @@ def retrieve_courses():
         cnx.close()
 
 
+#retrieve courses for student
 @app.route('/retrieve_courses_for_student/<int:user_id>', methods=['GET'])
 def retrieve_courses_for_student(user_id):
     cnx = connect_to_mysql()
@@ -214,6 +218,7 @@ def retrieve_courses_for_student(user_id):
         cnx.close()
 
 
+#retrieve courses for lecturer
 @app.route('/retrieve_courses_for_lecturer/<int:user_id>', methods=['GET'])
 def retrieve_courses_for_lecturer(user_id):
     cnx = connect_to_mysql()
@@ -237,6 +242,7 @@ def retrieve_courses_for_lecturer(user_id):
         cnx.close()
 
 
+#register for course
 @app.route('/register_for_course', methods=['POST'])
 def register_for_course():
     data = request.get_json()
@@ -269,6 +275,7 @@ def register_for_course():
         cnx.close()
 
 
+#retrieve members
 @app.route('/retrieve_members/<int:course_id>', methods=['GET'])
 def retrieve_members(course_id):
     cnx = connect_to_mysql()
@@ -293,29 +300,78 @@ def retrieve_members(course_id):
         cnx.close()
 
 
+# #retrieve calendar events
+# @app.route('/retrieve_calendar_events/<int:course_id>', methods=['GET'])
+# def retrieve_calendar_events(course_id):
+#     cnx = connect_to_mysql()
+#     cursor = cnx.cursor(dictionary=True)
+#
+#     try:
+#         query = """
+#         SELECT EventId, EventName, EventDescription, EventDate, CreatedBy, CreatedAt
+#         FROM CalendarEvents
+#         WHERE CourseId = %s
+#         ORDER BY EventDate
+#         """
+#         cursor.execute(query, (course_id,))
+#         events = cursor.fetchall()
+#         return jsonify(events), 200
+#
+#     except Exception as e:
+#         return jsonify({'message': f'Failed to retrieve calendar events: {str(e)}'}), 500
+#
+#     finally:
+#         cnx.close()
+
+#retrieve calendar events for a course - Likely superseded by content_routes.py or similar
 @app.route('/retrieve_calendar_events/<int:course_id>', methods=['GET'])
-def retrieve_calendar_events(course_id):
-    cnx = connect_to_mysql()
+@token_required # Should be protected
+def retrieve_calendar_events(user_data, course_id):
+    # Authorization: Similar to retrieve_members
+    if user_data['role'] not in ['admin', 'lecturer', 'student']: # Students enrolled should see
+        # Add check if student is enrolled in course_id
+        return jsonify({'message': 'Access denied'}), 403
+
+    cnx = connect_to_mysql(app.config) # Corrected
     cursor = cnx.cursor(dictionary=True)
 
     try:
+        # Assuming CalendarEvents table: EventId, CourseId, EventName, EventDescription, EventDate, CreatedBy, CreatedAt
         query = """
-        SELECT EventId, EventName, EventDescription, EventDate, CreatedBy, CreatedAt
-        FROM CalendarEvents
+        SELECT *
+        FROM calendarevent
         WHERE CourseId = %s
         ORDER BY EventDate
         """
         cursor.execute(query, (course_id,))
-        events = cursor.fetchall()
-        return jsonify(events), 200
+        events_raw = cursor.fetchall()
+
+        events_list = []
+        for event_dict in events_raw:
+            processed_event = {}
+            for key, value in event_dict.items():
+                if isinstance(value, (datetime.datetime, datetime.date)):
+                    processed_event[key] = value.isoformat()
+                elif isinstance(value, datetime.timedelta):
+                    # Convert timedelta to a string representation (e.g., "HH:MM:SS")
+                    processed_event[key] = str(value)
+                else:
+                    processed_event[key] = value
+            events_list.append(processed_event)
+
+        return jsonify(events_list), 200
 
     except Exception as e:
+        app.logger.error(f"Failed to retrieve calendar events: {e}", exc_info=True)
         return jsonify({'message': f'Failed to retrieve calendar events: {str(e)}'}), 500
 
     finally:
+        cursor.close()
         cnx.close()
 
 
+
+#retrieve calendar events for student
 @app.route('/retrieve_calendar_events_for_student', methods=['GET'])
 def retrieve_calendar_events_for_student():
     data = request.get_json()
@@ -348,6 +404,7 @@ def retrieve_calendar_events_for_student():
         cnx.close()
 
 
+#create calendar event
 @app.route('/create_calendar_event', methods=['POST'])
 def create_calendar_event():
     data = request.get_json()

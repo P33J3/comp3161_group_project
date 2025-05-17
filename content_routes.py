@@ -5,7 +5,7 @@ from datetime import datetime
 
 content_bp = Blueprint('content', __name__)
 
-
+#add coure content
 @content_bp.route('/course/<int:course_id>/content', methods=['POST'])
 @token_required
 def add_course_content(user_data, course_id):
@@ -59,7 +59,7 @@ def add_course_content(user_data, course_id):
         cursor.close()
         cnx.close()
 
-
+#Retrieve Course Content
 @content_bp.route('/course/<int:course_id>/content', methods=['GET'])
 @token_required
 def get_course_content(user_data, course_id):
@@ -139,7 +139,7 @@ def get_course_content(user_data, course_id):
         cursor.close()
         cnx.close()
 
-
+#create assignment
 @content_bp.route('/course/<int:course_id>/assignments', methods=['POST'])
 @token_required
 def create_assignment(user_data, course_id):
@@ -192,6 +192,7 @@ def create_assignment(user_data, course_id):
         cursor.close()
         cnx.close()
 
+#get assignments
 @content_bp.route('/course/<int:course_id>/assignments', methods=['GET'])
 @token_required
 def get_assignments(user_data, course_id):
@@ -231,6 +232,7 @@ def get_assignments(user_data, course_id):
         cursor.close()
         cnx.close()
 
+#submit assignment
 @content_bp.route('/assignment/<int:assignment_id>/submit', methods=['POST'])
 @token_required
 def submit_assignment(user_data, assignment_id):
@@ -305,6 +307,7 @@ def submit_assignment(user_data, assignment_id):
         cnx.close()
 
 
+#grade assignment
 @content_bp.route('/submission/<int:submission_id>/grade', methods=['POST'])
 @token_required
 def grade_submission(user_data, submission_id):
@@ -359,6 +362,7 @@ def grade_submission(user_data, submission_id):
         cursor.close()
         cnx.close()
 
+#retrieve student's grades
 @content_bp.route('/student/<int:student_id>/grades', methods=['GET'])
 @token_required
 def get_student_grades(user_data, student_id):

@@ -4,6 +4,7 @@ from .config import Config
 
 views_bp = Blueprint('views', __name__)
 
+#Courses with 50 or more students
 @views_bp.route('/courses/high-enrollment', methods=['GET'])
 @token_required
 def get_high_enrollment_courses(user_data):
@@ -56,6 +57,7 @@ def get_high_enrollment_courses(user_data):
         if cnx: cnx.close()
 
 
+#Lecturers with 3 or more courses
 @views_bp.route('/lecturers/high-workload', methods=['GET'])
 @token_required
 def get_high_workload_lecturers(user_data):
@@ -108,6 +110,7 @@ def get_high_workload_lecturers(user_data):
         if cursor: cursor.close()
         if cnx: cnx.close()
 
+#Students with 5 or more courses
 @views_bp.route('/students/high-load', methods=['GET'])
 @token_required
 def get_high_load_students(user_data):
@@ -161,6 +164,7 @@ def get_high_load_students(user_data):
         if cursor: cursor.close()
         if cnx: cnx.close()
 
+#Top 10 Enrolled Courses
 @views_bp.route('/courses/top-enrolled', methods=['GET'])
 @token_required
 def get_top_10_enrolled_courses(user_data):
@@ -213,6 +217,7 @@ def get_top_10_enrolled_courses(user_data):
         if cnx: cnx.close()
 
 
+#Top 10 Students
 @views_bp.route('/students/top-performers', methods=['GET'])
 @token_required
 def get_top_10_students(user_data):
